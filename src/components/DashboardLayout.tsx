@@ -9,7 +9,7 @@ const DashboardLayout = () => {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background animate-scanline transition-colors duration-500">
       <Sidebar />
       <div className="flex-1 ml-60 transition-all duration-300">
         <Header />

@@ -48,8 +48,8 @@ const Sidebar = () => {
     )} style={{ background: 'var(--gradient-sidebar)' }}>
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
-        <div className="flex-shrink-0 w-9 h-9 rounded-xl gradient-primary flex items-center justify-center shadow-glow">
-          <Building2 className="w-5 h-5 text-primary-foreground" />
+        <div className="flex-shrink-0 w-9 h-9">
+          <img src="/logo.png" alt="OBU Logo" className="w-full h-full object-contain drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]" />
         </div>
         {!collapsed && (
           <div className="overflow-hidden">

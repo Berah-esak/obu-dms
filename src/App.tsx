@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "next-themes";
 import DashboardLayout from "@/components/DashboardLayout";
 import LoginPage from "@/pages/LoginPage";
 import DashboardPage from "@/pages/DashboardPage";
@@ -23,31 +24,33 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/" element={<LandingPage />} />
-            <Route element={<DashboardLayout />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/rooms" element={<RoomsPage />} />
-              <Route path="/students" element={<StudentsPage />} />
-              <Route path="/maintenance" element={<MaintenancePage />} />
-              <Route path="/room-changes" element={<RoomChangesPage />} />
-              <Route path="/inventory" element={<InventoryPage />} />
-              <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/users" element={<UserManagementPage />} />
-              <Route path="/audit-logs" element={<AuditLogsPage />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/" element={<LandingPage />} />
+              <Route element={<DashboardLayout />}>
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/rooms" element={<RoomsPage />} />
+                <Route path="/students" element={<StudentsPage />} />
+                <Route path="/maintenance" element={<MaintenancePage />} />
+                <Route path="/room-changes" element={<RoomChangesPage />} />
+                <Route path="/inventory" element={<InventoryPage />} />
+                <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/notifications" element={<NotificationsPage />} />
+                <Route path="/users" element={<UserManagementPage />} />
+                <Route path="/audit-logs" element={<AuditLogsPage />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

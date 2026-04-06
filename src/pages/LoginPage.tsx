@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building2, Eye, EyeOff, LogIn } from 'lucide-react';
+import { Building2, Eye, EyeOff, LogIn, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const LoginPage = () => {
   const [username, setUsername] = useState('');
@@ -37,7 +38,7 @@ const LoginPage = () => {
   ];
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background relative overflow-hidden">
+    <div className="flex min-h-screen items-center justify-center bg-background relative overflow-hidden animate-scanline transition-colors duration-500">
       {/* Background effects */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-primary/5 blur-3xl" />
@@ -45,11 +46,26 @@ const LoginPage = () => {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/3 blur-[120px]" />
       </div>
 
+      <div className="absolute top-6 left-6 z-10 animate-fade-in">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate('/')}
+          className="text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Home
+        </Button>
+      </div>
+
+      <div className="absolute top-6 right-6 z-10 animate-fade-in">
+        <ThemeToggle />
+      </div>
+
       <div className="relative w-full max-w-md px-4 animate-scale-in">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl gradient-primary shadow-glow mb-4">
-            <Building2 className="w-8 h-8 text-primary-foreground" />
+          <div className="flex-shrink-0 w-16 h-16 mb-4">
+            <img src="/logo.png" alt="OBU Logo" className="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">OBU Dormitory</h1>
           <p className="text-muted-foreground text-sm mt-1">Management System</p>

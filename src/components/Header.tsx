@@ -1,6 +1,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { Bell, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { ThemeToggle } from './ThemeToggle';
 
 const Header = () => {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ const Header = () => {
           <Bell className="w-5 h-5 text-muted-foreground" />
           <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary animate-pulse-glow" />
         </button>
+        <ThemeToggle />
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
             {user?.fullName?.split(' ').map(n => n[0]).join('').slice(0, 2)}
