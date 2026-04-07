@@ -18,6 +18,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['student', 'dorm_admin', 'maintenance', 'management', 'system_admin'] },
+  { icon: Users, label: 'Profile', path: '/profile', roles: ['student', 'dorm_admin', 'maintenance', 'management', 'system_admin'] },
   { icon: Users, label: 'Students', path: '/students', roles: ['dorm_admin', 'management', 'system_admin'] },
   { icon: DoorOpen, label: 'Rooms', path: '/rooms', roles: ['dorm_admin', 'management', 'system_admin'] },
   { icon: ArrowRightLeft, label: 'Room Changes', path: '/room-changes', roles: ['student', 'dorm_admin', 'system_admin'] },

@@ -30,11 +30,11 @@ const LoginPage = () => {
   };
 
   const demoAccounts = [
-    { label: 'Admin', user: 'admin', pass: 'admin123' },
-    { label: 'Dorm Admin', user: 'dorm.admin', pass: 'admin123' },
-    { label: 'Student', user: 'student', pass: 'student123' },
-    { label: 'Maintenance', user: 'maintenance', pass: 'maint123' },
-    { label: 'Management', user: 'management', pass: 'mgmt123' },
+    { label: 'Admin', user: 'admin', pass: 'admin' },
+    { label: 'Dorm Admin', user: 'dormadmin', pass: 'admin' },
+    { label: 'Student', user: 'student', pass: 'student' },
+    { label: 'Maintenance', user: 'maintenance', pass: 'maint' },
+    { label: 'Management', user: 'management', pass: 'mgmt' },
   ];
 
   return (

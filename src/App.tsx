@@ -17,6 +17,7 @@ import ReportsPage from "@/pages/ReportsPage";
 import NotificationsPage from "@/pages/NotificationsPage";
 import UserManagementPage from "@/pages/UserManagementPage";
 import AuditLogsPage from "@/pages/AuditLogsPage";
+import ProfilePage from "@/pages/ProfilePage";
 import LandingPage from "@/pages/LandingPage";
 import NotFound from "./pages/NotFound.tsx";
 
@@ -39,6 +40,7 @@ const App = () => (
                 <Route path="/students" element={<StudentsPage />} />
                 <Route path="/maintenance" element={<MaintenancePage />} />
                 <Route path="/room-changes" element={<RoomChangesPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/inventory" element={<InventoryPage />} />
                 <Route path="/reports" element={<ReportsPage />} />
                 <Route path="/notifications" element={<NotificationsPage />} />

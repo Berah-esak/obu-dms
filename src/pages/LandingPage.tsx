@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { TelemetryHud } from '@/components/TelemetryHud';
 import { ReactiveGrid } from '@/components/ReactiveGrid';
 
 const systemFeatures = [
@@ -249,7 +248,7 @@ const LandingPage = () => {
 
           {/* Left Column: Copy */}
           <div className="text-left animate-fade-in relative">
-            <TelemetryHud />
+
             <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-primary text-sm mb-8 backdrop-blur-md">
               <span className="w-2 h-2 rounded-full bg-primary animate-ping"></span>
               <span className="font-semibold tracking-wide uppercase text-xs">V2.4 Online - Interconnected</span>
@@ -353,8 +352,8 @@ const LandingPage = () => {
               >
                 {/* Digital Scan Effect (Light Mode only) */}
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-500">
-                   <div className="absolute top-0 left-0 w-full h-[1px] bg-primary/30 animate-scanline"></div>
-                   <div className="absolute inset-0 bg-primary/[0.02]"></div>
+                  <div className="absolute top-0 left-0 w-full h-[1px] bg-primary/30 animate-scanline"></div>
+                  <div className="absolute inset-0 bg-primary/[0.02]"></div>
                 </div>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-[50px] group-hover:bg-primary/20 transition-colors"></div>
                 <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-6 overflow-hidden relative">
@@ -413,7 +412,7 @@ const LandingPage = () => {
               <span className="text-xl font-bold tracking-wider">OBU<span className="text-primary">CORE</span></span>
             </div>
             <p className="text-muted-foreground text-sm max-w-sm leading-relaxed mb-6">
-              The next-generation smart dormitory management system. Streamlining the student housing experience with real-time telemetrics and interconnected campus modules.
+              Oda Bultum University smart dormitory management system. Streamlining the student housing experience with real-time telemetrics and interconnected campus modules.
             </p>
             <div className="flex items-center gap-6 text-xs text-muted-foreground font-mono uppercase tracking-wider">
               <span className="flex items-center gap-2"><Lock className="w-3 h-3 text-emerald-400" /> AES-256 Encrypted</span>
