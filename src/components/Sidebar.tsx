@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   Building2, LayoutDashboard, Users, DoorOpen, Wrench,
   ArrowRightLeft, Package, BarChart3, Bell, Shield, LogOut,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Settings,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { UserRole } from '@/types/api';
@@ -28,6 +28,7 @@ const navItems: NavItem[] = [
   { icon: Users, label: 'User Management', path: '/users', roles: ['system_admin'] },
   { icon: Bell, label: 'Notifications', path: '/notifications', roles: ['student', 'dorm_admin', 'maintenance', 'management', 'system_admin'] },
   { icon: Shield, label: 'Audit Logs', path: '/audit-logs', roles: ['system_admin'] },
+  { icon: Settings, label: 'Settings', path: '/settings', roles: ['system_admin'] },
 ];
 
 const Sidebar = () => {
