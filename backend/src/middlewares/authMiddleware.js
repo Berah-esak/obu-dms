@@ -24,3 +24,15 @@ export const requireAuth = (req, res, next) => {
     throw new ApiError(401, "Invalid or expired token");
   }
 };
+
+export const authorizeRoles = (...allowedRoles) => (req, res, next) => {
+  if (!req.user?.role) {
+    throw new ApiError(401, "Unauthorized");
+  }
+
+  if (!allowedRoles.includes(req.user.role)) {
+    throw new ApiError(403, "Insufficient permission");
+  }
+
+  next();
+};
