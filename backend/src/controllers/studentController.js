@@ -17,17 +17,3 @@ export const studentController = {
     res.status(200).json(data);
   }),
 };
-
-    res.status(200).json({ success: true, ...data });
-  }),
-
-  addMaintenanceNote: asyncHandler(async (req, res) => {
-    const data = await maintenanceService.addNote(req.params.requestId, req.body, req.user.id);
-    res.status(200).json(data);
-  }),
-
-  reassignMaintenanceRequest: asyncHandler(async (req, res) => {
-    const data = await maintenanceService.reassign(req.params.requestId, req.body);
-    res.status(200).json({ success: true, ...data });
-  }),
-};
