@@ -4,7 +4,7 @@ export const notificationRepository = {
   findByRecipient: (recipient, options = {}) => {
     const filter = { recipient };
     if (options.unreadOnly) {
-      filter.isRead = true;
+      filter.isRead = false;
     }
 
     return Notification.find(filter)

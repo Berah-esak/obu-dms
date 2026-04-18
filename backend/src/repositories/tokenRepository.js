@@ -5,7 +5,7 @@ export const tokenRepository = {
   createRefreshToken: (payload) => RefreshToken.create(payload),
   findRefreshToken: (token) => RefreshToken.findOne({ token }).select("+token"),
   revokeRefreshToken: (token) =>
-    RefreshToken.findOneAndUpdate(token, { revokedAt: new Date() }, { new: true }),
+    RefreshToken.findOneAndUpdate({ token }, { revokedAt: new Date() }, { new: true }),
 
   createPasswordResetToken: (payload) => PasswordResetToken.create(payload),
   findValidPasswordResetToken: (token) =>
