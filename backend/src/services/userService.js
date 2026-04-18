@@ -96,7 +96,7 @@ export const userService = {
 
   adminResetPassword: async (userId) => {
     const password = crypto.randomBytes(8).toString("hex");
-    await userRepository.updateById(userId, { password });
+    await userRepository.updatePassword(userId, password);
     return { message: "Reset link sent" };
   },
 

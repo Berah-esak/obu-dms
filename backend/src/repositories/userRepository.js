@@ -37,5 +37,16 @@ export const userRepository = {
       runValidators: true,
     }),
 
+  updatePassword: async (id, newPassword) => {
+    const user = await User.findById(id).select("+password");
+    if (!user) {
+      return null;
+    }
+
+    user.password = newPassword;
+    await user.save();
+    return user;
+  },
+
   create: (payload) => User.create(payload),
 };
