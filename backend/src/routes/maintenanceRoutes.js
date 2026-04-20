@@ -2,43 +2,53 @@ import { Router } from "express";
 
 import { maintenanceController } from "../controllers/maintenanceController.js";
 import { authorizeRoles, requireAuth } from "../middlewares/authMiddleware.js";
+import { validate } from "../validators/index.js";
+import {
+  submitMaintenanceSchema,
+  updateStatusSchema,
+  addNoteSchema,
+  reassignSchema,
+} from "../validators/maintenanceValidator.js";
 
 const router = Router();
 
 router.get(
   "/maintenance-requests",
   requireAuth,
-  authorizeRoles("Dorm Admin", "Maintenance Staff", "Management", "System Admin"),
+  authorizeRoles("dorm_admin", "maintenance", "management", "system_admin"),
   maintenanceController.getMaintenanceRequests
 );
 
-router.post("/maintenance-requests", requireAuth, maintenanceController.submitMaintenanceRequest);
+router.post("/maintenance-requests", requireAuth, validate(submitMaintenanceSchema), maintenanceController.submitMaintenanceRequest);
 
 router.get(
   "/maintenance-requests/assigned",
   requireAuth,
-  authorizeRoles("Maintenance Staff"),
+  authorizeRoles("maintenance"),
   maintenanceController.getAssignedRequests
 );
 
 router.put(
   "/maintenance-requests/:requestId/status",
   requireAuth,
-  authorizeRoles("Maintenance Staff", "Dorm Admin", "System Admin"),
+  authorizeRoles("maintenance", "dorm_admin", "system_admin"),
+  validate(updateStatusSchema),
   maintenanceController.updateMaintenanceStatus
 );
 
 router.post(
   "/maintenance-requests/:requestId/notes",
   requireAuth,
-  authorizeRoles("Maintenance Staff", "Dorm Admin", "System Admin"),
+  authorizeRoles("maintenance", "dorm_admin", "system_admin"),
+  validate(addNoteSchema),
   maintenanceController.addMaintenanceNote
 );
 
 router.put(
   "/maintenance-requests/:requestId/reassign",
   requireAuth,
-  authorizeRoles("Dorm Admin", "System Admin"),
+  authorizeRoles("dorm_admin", "system_admin"),
+  validate(reassignSchema),
   maintenanceController.reassignMaintenanceRequest
 );
 

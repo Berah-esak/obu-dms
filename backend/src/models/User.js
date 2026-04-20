@@ -99,7 +99,6 @@ userSchema.methods.comparePassword = function comparePassword(plainPassword) {
   return bcrypt.compare(plainPassword, this.password);
 };
 
-userSchema.index({ username: 1 }, { unique: true });
-userSchema.index({ email: 1 }, { unique: true });
+ 
 
 export const User = mongoose.model("User", userSchema);

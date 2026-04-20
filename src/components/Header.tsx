@@ -1,14 +1,30 @@
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Bell, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { ThemeToggle } from './ThemeToggle';
 import { useNavigate } from 'react-router-dom';
-import { getNotifications } from '@/lib/local-store';
+import { apiService } from '@/lib/api';
 
 const Header = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const unread = getNotifications().filter((n: any) => !n.isRead).length;
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const loadUnread = async () => {
+      const result = await apiService.getUnreadNotificationCount();
+      if (active && result.success && result.data) {
+        setUnread(result.data.count);
+      }
+    };
+
+    loadUnread();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <header className="hidden md:flex h-16 border-b border-border glass sticky top-0 z-30 items-center justify-between px-6">

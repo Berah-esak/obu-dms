@@ -13,42 +13,41 @@ export const reportService = {
     ]);
     const totalBeds = await Room.aggregate([{ $group: { _id: null, total: { $sum: "$capacity" } } }]);
     const pendingMaintenance = await MaintenanceRequest.countDocuments({ status: "Submitted" });
-    const availableBeds = (totalBeds[0]?.total || 0) - (occupiedBeds[0]?.total || 0);
+    const occupiedTotal = occupiedBeds[0]?.total || 0;
+    const totalBedCapacity = totalBeds[0]?.total || 0;
+    const availableBeds = totalBedCapacity - occupiedTotal;
 
     return {
       totalStudents,
       totalRooms,
-      occupancyRate: totalBeds[0]?.total ? (occupiedBeds[0].total / totalBeds[0].total) * 100 : 0,
+      occupancyRate: totalBedCapacity ? (occupiedTotal / totalBedCapacity) * 100 : 0,
       pendingMaintenance,
       availableBeds,
     };
   },
 
-  getOccupancyReport: async () => {
-    const rooms = await Room.find({}).populate("dormId", "name");
-    const map = new Map();
+  getOccupancyReport: async (query = {}) => {
+    const rooms = await Room.find({}).populate("dormId", "name code");
+    const filteredRooms = query.building
+      ? rooms.filter(
+          (room) => room.dormId?.name === query.building || room.dormId?.code === query.building
+        )
+      : rooms;
 
-    for (const room of rooms) {
-      const key = room.dormId?.name || "Unknown";
-      if (!map.has(key)) {
-        map.set(key, { building: key, totalRooms: 0, occupiedRooms: 0, data: [] });
-      }
-
-      const item = map.get(key);
-      item.totalRooms += 1;
-      if (room.currentOccupancy > 0) {
-        item.occupiedRooms += 1;
-      }
-      item.data.push({
-        floor: room.floor,
-        occupancyRate: room.capacity ? (room.currentOccupancy / room.capacity) * 100 : 0,
-      });
-    }
-
-    return Array.from(map.values()).map((item) => ({
-      ...item,
-      occupancyRate: item.totalRooms ? (item.occupiedRooms / item.totalRooms) * 100 : 0,
+    const totalRooms = filteredRooms.length;
+    const occupiedRooms = filteredRooms.filter((room) => room.currentOccupancy > 0).length;
+    const data = filteredRooms.map((room) => ({
+      floor: room.floor,
+      occupancyRate: room.capacity ? (room.currentOccupancy / room.capacity) * 100 : 0,
     }));
+
+    return {
+      building: query.building || "All Buildings",
+      totalRooms,
+      occupiedRooms,
+      occupancyRate: totalRooms ? (occupiedRooms / totalRooms) * 100 : 0,
+      data,
+    };
   },
 
   getStudentDirectory: async (query) => {

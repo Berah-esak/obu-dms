@@ -47,7 +47,7 @@ const dormSchema = new mongoose.Schema(
   }
 );
 
-dormSchema.index({ code: 1 }, { unique: true });
+ 
 
 dormSchema.set("toJSON", {
   virtuals: true,

@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 import { tokenRepository } from "../repositories/tokenRepository.js";
 import { userRepository } from "../repositories/userRepository.js";
+import { studentRepository } from "../repositories/studentRepository.js";
 import { ApiError } from "../utils/ApiError.js";
 
 const generateToken = (userId, role) =>
@@ -56,16 +57,83 @@ export const authService = {
     };
   },
 
+  registerStudent: async (payload) => {
+    const email = payload.email?.toLowerCase().trim();
+    if (!email || !email.endsWith("@odu.edu.et")) {
+      throw new ApiError(400, "Registration requires a valid @odu.edu.et university email");
+    }
+
+    const existingUser = await userRepository.findByEmail(email);
+    if (existingUser) {
+      throw new ApiError(400, "Email already registered");
+    }
+
+    const existingPhone = await studentRepository.findByPhone(payload.phone);
+    if (existingPhone) {
+      throw new ApiError(400, "Phone number already registered");
+    }
+
+    const existingStudentId = await studentRepository.findByStudentId(payload.studentId);
+    if (existingStudentId) {
+      throw new ApiError(400, "Student ID already registered");
+    }
+
+    const username = email.split("@")[0];
+    const existingUsername = await userRepository.findByUsername(username);
+    if (existingUsername) {
+      throw new ApiError(400, "Username derived from email is already in use");
+    }
+
+    const fullName = `${payload.firstName} ${payload.lastName}`.trim();
+
+    const newUser = await userRepository.create({
+      username,
+      fullName,
+      email,
+      password: payload.password,
+      role: "Student",
+      studentId: payload.studentId,
+    });
+
+    const newStudent = await studentRepository.create({
+      studentId: payload.studentId,
+      fullName,
+      gender: payload.gender,
+      department: payload.department,
+      year: payload.year,
+      phone: payload.phone,
+      email,
+      user: newUser.id,
+    });
+
+    return {
+      message: "Registration successful",
+      user: { id: newUser.id, username, email, role: "Student" },
+      student: { id: newStudent.id, studentId: newStudent.studentId },
+    };
+  },
+
   logout: async () => ({ message: "Logout successful" }),
 
   forgotPassword: async (payload) => {
-    if (!payload.email) {
-      throw new ApiError(400, "email is required");
+    if (!payload.identifier && !payload.email) {
+      throw new ApiError(400, "Email or phone number is required");
     }
 
-    const user = await userRepository.findByEmail(payload.email.toLowerCase());
+    const identifier = payload.identifier || payload.email;
+    let user;
+
+    if (identifier.includes("@")) {
+      user = await userRepository.findByEmail(identifier.toLowerCase().trim());
+    } else {
+      const student = await studentRepository.findByPhone(identifier.trim());
+      if (student && student.user) {
+        user = await userRepository.findById(student.user._id || student.user);
+      }
+    }
+
     if (!user) {
-      return { message: "Reset link sent if email exists" };
+      return { message: "Reset link sent if account exists" };
     }
 
     const token = crypto.randomBytes(32).toString("hex");

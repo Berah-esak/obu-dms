@@ -6,7 +6,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
 import DashboardLayout from "@/components/DashboardLayout";
+import { PublicOnly, RequireAuth, RequireRole } from "@/components/RouteGuards";
 import LoginPage from "@/pages/LoginPage";
+import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
+import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import DashboardPage from "@/pages/DashboardPage";
 import RoomsPage from "@/pages/RoomsPage";
 import StudentsPage from "@/pages/StudentsPage";
@@ -33,21 +36,23 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <Routes>
-              <Route path="/login" element={<LoginPage />} />
+              <Route path="/login" element={<PublicOnly><LoginPage /></PublicOnly>} />
+              <Route path="/forgot-password" element={<PublicOnly><ForgotPasswordPage /></PublicOnly>} />
+              <Route path="/reset-password" element={<PublicOnly><ResetPasswordPage /></PublicOnly>} />
               <Route path="/" element={<LandingPage />} />
-              <Route element={<DashboardLayout />}>
+              <Route element={<RequireAuth><DashboardLayout /></RequireAuth>}>
                 <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/rooms" element={<RoomsPage />} />
-                <Route path="/students" element={<StudentsPage />} />
+                <Route path="/rooms" element={<RequireRole roles={["dorm_admin", "management", "system_admin"]}><RoomsPage /></RequireRole>} />
+                <Route path="/students" element={<RequireRole roles={["dorm_admin", "management", "system_admin"]}><StudentsPage /></RequireRole>} />
                 <Route path="/maintenance" element={<MaintenancePage />} />
                 <Route path="/room-changes" element={<RoomChangesPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/inventory" element={<InventoryPage />} />
-                <Route path="/reports" element={<ReportsPage />} />
+                <Route path="/inventory" element={<RequireRole roles={["dorm_admin", "system_admin"]}><InventoryPage /></RequireRole>} />
+                <Route path="/reports" element={<RequireRole roles={["dorm_admin", "management", "system_admin"]}><ReportsPage /></RequireRole>} />
                 <Route path="/notifications" element={<NotificationsPage />} />
-                <Route path="/users" element={<UserManagementPage />} />
-                <Route path="/audit-logs" element={<AuditLogsPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/users" element={<RequireRole roles={["system_admin"]}><UserManagementPage /></RequireRole>} />
+                <Route path="/audit-logs" element={<RequireRole roles={["system_admin"]}><AuditLogsPage /></RequireRole>} />
+                <Route path="/settings" element={<RequireRole roles={["system_admin"]}><SettingsPage /></RequireRole>} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

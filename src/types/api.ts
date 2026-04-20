@@ -1,7 +1,7 @@
 // Types derived from swagger-contract.yaml
 
 export type UserRole = 'student' | 'dorm_admin' | 'maintenance' | 'management' | 'system_admin';
-export type RoomStatus = 'Available' | 'Occupied' | 'Under Maintenance';
+export type RoomStatus = 'Available' | 'Occupied' | 'Under Maintenance' | 'Full' | 'Maintenance';
 export type RoomType = 'Single' | 'Double' | 'Triple';
 export type Gender = 'Male' | 'Female' | 'None';
 export type MaintenanceCategory = 'Plumbing' | 'Electrical' | 'Furniture' | 'Sanitation' | 'Other';

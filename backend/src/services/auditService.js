@@ -38,4 +38,21 @@ export const auditService = {
     expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     filters: query,
   }),
+
+  log: async ({ user, action, entity, entityId, details, ipAddress, status = "SUCCESS" }) => {
+    try {
+      await auditRepository.create({
+        user,
+        action,
+        entity,
+        entityId: String(entityId),
+        details,
+        ipAddress: ipAddress || "0.0.0.0",
+        status,
+        timestamp: new Date()
+      });
+    } catch (error) {
+       console.error("Audit logging failed:", error);
+    }
+  },
 };

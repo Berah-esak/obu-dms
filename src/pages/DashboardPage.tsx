@@ -15,10 +15,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
-import {
-  getDashboardSummary, getMaintenanceRequests,
-  getRoomChangeRequests, getNotifications, getRooms
-} from '@/lib/local-store';
+import { apiService } from '@/lib/api';
+import type { DashboardSummary, MaintenanceRequest, Notification, RoomChangeRequest, Room } from '@/types/api';
 
 const T = {
   tooltip: { background: 'hsl(220,18%,10%)', border: '1px solid hsl(220,15%,20%)', borderRadius: '12px', color: 'hsl(210,40%,95%)' },
@@ -50,9 +48,31 @@ const PIE_COLORS = ['hsl(152,60%,45%)', 'hsl(185,80%,50%)', 'hsl(38,92%,55%)'];
 function StudentDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const myMaint = getMaintenanceRequests().filter((r: any) => r.submittedBy?.email === user?.email);
-  const myChanges = getRoomChangeRequests().filter((r: any) => r.student?.email === user?.email);
-  const notifs = getNotifications();
+  const [myMaint, setMyMaint] = useState<MaintenanceRequest[]>([]);
+  const [myChanges, setMyChanges] = useState<RoomChangeRequest[]>([]);
+  const [notifs, setNotifs] = useState<Notification[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      const [maintenanceRes, changeRes, notifRes] = await Promise.all([
+        apiService.getStudentMaintenanceRequests(10, 0),
+        apiService.getMyRoomChangeRequests(),
+        apiService.getNotifications({ limit: 10, offset: 0 }),
+      ]);
+
+      if (!active) return;
+      if (maintenanceRes.success && maintenanceRes.data?.requests) setMyMaint(maintenanceRes.data.requests);
+      if (changeRes.success && changeRes.data?.requests) setMyChanges(changeRes.data.requests);
+      if (notifRes.success && notifRes.data?.notifications) setNotifs(notifRes.data.notifications);
+    };
+
+    load();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const unread = notifs.filter((n: any) => !n.isRead).length;
   const activeMaint = myMaint.filter((r: any) => r.status !== 'Completed' && r.status !== 'Rejected');
   const pendingChange = myChanges.find((r: any) => r.status === 'pending');
@@ -209,11 +229,36 @@ function StudentDashboard() {
 function AdminDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const summary = getDashboardSummary();
-  const maintenance = getMaintenanceRequests();
-  const roomChanges = getRoomChangeRequests();
-  const notifications = getNotifications();
-  const rooms = getRooms();
+  const [summary, setSummary] = useState<DashboardSummary>({ totalStudents: 0, totalRooms: 0, occupancyRate: 0, pendingMaintenance: 0, availableBeds: 0 });
+  const [maintenance, setMaintenance] = useState<MaintenanceRequest[]>([]);
+  const [roomChanges, setRoomChanges] = useState<RoomChangeRequest[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      const [summaryRes, maintenanceRes, roomChangesRes, notificationsRes, roomsRes] = await Promise.all([
+        apiService.getDashboardSummary(),
+        apiService.getMaintenanceRequests(),
+        apiService.getPendingRoomChangeRequests(),
+        apiService.getNotifications({ limit: 10, offset: 0 }),
+        apiService.getRooms(),
+      ]);
+
+      if (!active) return;
+      if (summaryRes.success && summaryRes.data) setSummary(summaryRes.data);
+      if (maintenanceRes.success && maintenanceRes.data?.requests) setMaintenance(maintenanceRes.data.requests);
+      if (roomChangesRes.success && roomChangesRes.data?.requests) setRoomChanges(roomChangesRes.data.requests);
+      if (notificationsRes.success && notificationsRes.data?.notifications) setNotifications(notificationsRes.data.notifications);
+      if (roomsRes.success && roomsRes.data?.rooms) setRooms(roomsRes.data.rooms);
+    };
+
+    load();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const unread = notifications.filter((n: any) => !n.isRead).length;
   const pendingMaint = maintenance.filter((m: any) => m.status === 'Submitted').length;

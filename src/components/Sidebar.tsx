@@ -50,8 +50,8 @@ export default function Sidebar() {
   const filteredNav = navItems.filter(item => hasRole(item.roles));
   const filteredBottom = mobileBottomItems.filter(item => hasRole(item.roles));
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
     setMobileOpen(false);
   };

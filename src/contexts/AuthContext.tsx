@@ -14,16 +14,52 @@ interface AuthContextType extends AuthState {
   logout: () => Promise<void>;
   hasRole: (roles: UserRole[]) => boolean;
   refreshSession: () => Promise<void>;
+  getDefaultRoute: () => string;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const DEMO_ACCOUNTS: Record<string, { password: string; user: User }> = {
-  'admin': { password: 'admin', user: { id: 'usr_001', username: 'admin', fullName: 'System Administrator', email: 'admin@obu.edu.et', role: 'system_admin', status: 'active' } },
-  'dormadmin': { password: 'admin', user: { id: 'usr_002', username: 'dormadmin', fullName: 'Dorm Administrator', email: 'dorm.admin@obu.edu.et', role: 'dorm_admin', status: 'active' } },
-  'student': { password: 'student', user: { id: 'usr_005', username: 'student', fullName: 'Alemu Bekele', email: 'alemu.bekele@obu.edu.et', role: 'student', status: 'active', studentId: 'OBU12345' } },
-  'maintenance': { password: 'maint', user: { id: 'usr_003', username: 'maintenance', fullName: 'Abdi Musa', email: 'abdi@obu.edu.et', role: 'maintenance', status: 'active' } },
-  'management': { password: 'mgmt', user: { id: 'usr_004', username: 'management', fullName: 'Management User', email: 'mgmt@obu.edu.et', role: 'management', status: 'active' } },
+const normalizeRole = (role?: string): UserRole => {
+  const normalized = String(role || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+
+  const mapping: Record<string, UserRole> = {
+    student: 'student',
+    dorm_admin: 'dorm_admin',
+    maintenance_staff: 'maintenance',
+    maintenance: 'maintenance',
+    management: 'management',
+    system_admin: 'system_admin',
+  };
+
+  return mapping[normalized] || 'student';
+};
+
+const normalizeStatus = (status?: string): 'active' | 'inactive' => {
+  return String(status || '').toLowerCase() === 'inactive' ? 'inactive' : 'active';
+};
+
+const normalizeUser = (user: User): User => ({
+  ...user,
+  role: normalizeRole(user.role),
+  status: normalizeStatus(user.status),
+});
+
+const defaultRouteByRole = (role: UserRole): string => {
+  switch (role) {
+    case 'student':
+      return '/dashboard';
+    case 'maintenance':
+      return '/maintenance';
+    case 'dorm_admin':
+    case 'management':
+    case 'system_admin':
+      return '/dashboard';
+    default:
+      return '/dashboard';
+  }
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -39,13 +75,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storedUser = localStorage.getItem('dms_user');
     if (storedToken && storedUser) {
       try {
-        setState({
-          user: JSON.parse(storedUser),
-          token: storedToken,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-        return;
+        const parsedUser = JSON.parse(storedUser) as User;
+        const normalizedUser = normalizeUser(parsedUser);
+        const validation = await apiService.validateSession();
+        if (validation.success && validation.data?.valid) {
+          setState({
+            user: normalizedUser,
+            token: storedToken,
+            isAuthenticated: true,
+            isLoading: false,
+          });
+          return;
+        }
       } catch (error) {
         console.error('Failed to restore session:', error);
       }
@@ -58,14 +99,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refreshSession]);
 
   const login = useCallback(async (username: string, password: string) => {
-    const account = DEMO_ACCOUNTS[username];
-    if (account && account.password === password) {
-      const mockToken = 'demo-jwt-token';
-      localStorage.setItem('dms_user', JSON.stringify(account.user));
-      localStorage.setItem('dms_token', mockToken);
+    const result = await apiService.login(username, password);
+    if (result.success && result.data) {
+      const normalizedUser = normalizeUser(result.data.user);
+
+      localStorage.setItem('dms_user', JSON.stringify(normalizedUser));
+      localStorage.setItem('dms_token', result.data.token);
+      if (result.data.refreshToken) {
+        localStorage.setItem('dms_refresh_token', result.data.refreshToken);
+      }
       setState({
-        user: account.user,
-        token: mockToken,
+        user: normalizedUser,
+        token: result.data.token,
         isAuthenticated: true,
         isLoading: false,
       });
@@ -75,6 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    await apiService.logout();
     localStorage.removeItem('dms_user');
     localStorage.removeItem('dms_token');
     localStorage.removeItem('dms_refresh_token');
@@ -85,8 +131,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return state.user ? roles.includes(state.user.role) : false;
   }, [state.user]);
 
+  const getDefaultRoute = useCallback(() => {
+    return state.user ? defaultRouteByRole(state.user.role) : '/dashboard';
+  }, [state.user]);
+
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, hasRole, refreshSession }}>
+    <AuthContext.Provider value={{ ...state, login, logout, hasRole, refreshSession, getDefaultRoute }}>
       {children}
     </AuthContext.Provider>
   );

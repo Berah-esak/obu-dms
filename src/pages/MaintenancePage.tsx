@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Wrench, Search, Plus, Camera, Send, AlertCircle, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { getMaintenanceRequests, addMaintenanceRequest, updateMaintenanceRequest, genId, addAuditLog } from '@/lib/local-store';
+import { apiService } from '@/lib/api';
+import type { MaintenanceRequest } from '@/types/api';
 
 const MaintenancePage = () => {
   const { user, hasRole } = useAuth();
@@ -19,10 +20,7 @@ const MaintenancePage = () => {
   const isMaint = hasRole(['maintenance']);
 
   const [requests, setRequests] = useState<any[]>(() => {
-    const all = getMaintenanceRequests();
-    if (user?.role === 'student') return all.filter((r: any) => r.submittedBy?.email === user.email);
-    if (isMaint) return all.filter((r: any) => r.assignedTo?.id === user?.id || !r.assignedTo);
-    return all;
+    return [];
   });
 
   const [search, setSearch] = useState('');
@@ -35,12 +33,19 @@ const MaintenancePage = () => {
   const [newForm, setNewForm] = useState({ roomId: '', category: '', priority: '', description: '', imagePreview: '' });
   const [statusForm, setStatusForm] = useState({ status: '', resolutionNotes: '' });
 
-  const refresh = () => {
-    const all = getMaintenanceRequests();
-    if (user?.role === 'student') setRequests(all.filter((r: any) => r.submittedBy?.email === user.email));
-    else if (isMaint) setRequests(all.filter((r: any) => r.assignedTo?.id === user?.id || !r.assignedTo));
-    else setRequests(all);
+  const refresh = async () => {
+    const result = isMaint
+      ? await apiService.getMyMaintenanceTasks()
+      : await apiService.getMaintenanceRequests({});
+
+    if (result.success && result.data) {
+      setRequests((result.data as any).requests || (result.data as any).tasks || []);
+    }
   };
+
+  useEffect(() => {
+    refresh();
+  }, [user?.role]);
 
   const filtered = requests.filter(r => {
     if (search && !r.description?.toLowerCase().includes(search.toLowerCase()) && !r.requestId?.toLowerCase().includes(search.toLowerCase())) return false;
@@ -49,44 +54,43 @@ const MaintenancePage = () => {
     return true;
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newForm.category || !newForm.priority || !newForm.description || !newForm.roomId) {
       toast.error('Please fill in all required fields.');
       return;
     }
-    const id = genId('mr');
-    const num = String(getMaintenanceRequests().length + 1).padStart(4, '0');
-    const req = {
-      id,
-      requestId: `MR-2026-${num}`,
-      trackingNumber: `TRK-${num}`,
-      room: { roomId: newForm.roomId, building: newForm.roomId.split('-').slice(0, 2).join(' '), floor: 1, roomNumber: newForm.roomId.split('-')[2] || '?' },
+    const result = await apiService.submitMaintenanceRequest({
+      roomId: newForm.roomId,
       category: newForm.category,
       description: newForm.description,
       priority: newForm.priority,
-      status: 'Submitted',
-      submittedBy: { studentId: user?.studentId, fullName: user?.fullName, email: user?.email, department: 'N/A', year: 1, phone: '' },
-      submittedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    addMaintenanceRequest(req);
-    addAuditLog({ id: genId('al'), timestamp: new Date().toISOString(), user: user?.username || 'student', action: 'CREATE', entity: 'maintenance', entityId: id, ipAddress: '127.0.0.1', status: 'SUCCESS', details: `Maintenance request submitted: ${newForm.description}` });
-    toast.success(`Request submitted! Tracking: ${req.trackingNumber}`);
-    setIsNewOpen(false);
-    setNewForm({ roomId: '', category: '', priority: '', description: '', imagePreview: '' });
-    refresh();
+    });
+
+    if (result.success) {
+      toast.success('Request submitted successfully.');
+      setIsNewOpen(false);
+      setNewForm({ roomId: '', category: '', priority: '', description: '', imagePreview: '' });
+      await refresh();
+      return;
+    }
+
+    toast.error(result.error || 'Failed to submit request.');
   };
 
-  const handleStatusUpdate = (e: React.FormEvent) => {
+  const handleStatusUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!statusForm.status) { toast.error('Select a status.'); return; }
-    updateMaintenanceRequest(selectedReq.id, { status: statusForm.status, resolutionNotes: statusForm.resolutionNotes, updatedAt: new Date().toISOString() });
-    addAuditLog({ id: genId('al'), timestamp: new Date().toISOString(), user: user?.username || 'staff', action: 'UPDATE', entity: 'maintenance', entityId: selectedReq.id, ipAddress: '127.0.0.1', status: 'SUCCESS', details: `Status updated to ${statusForm.status}` });
-    toast.success('Status updated.');
-    setIsStatusOpen(false);
-    setStatusForm({ status: '', resolutionNotes: '' });
-    refresh();
+    const result = await apiService.updateMaintenanceStatus(selectedReq.id, statusForm.status, statusForm.resolutionNotes);
+    if (result.success) {
+      toast.success('Status updated.');
+      setIsStatusOpen(false);
+      setStatusForm({ status: '', resolutionNotes: '' });
+      await refresh();
+      return;
+    }
+
+    toast.error(result.error || 'Failed to update status.');
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

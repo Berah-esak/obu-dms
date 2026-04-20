@@ -1,127 +1,226 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiService } from '@/lib/api';
-import { Users, Plus, Search, Shield, MoreHorizontal, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Shield, Edit, Trash2, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
+type UiRole = 'student' | 'dorm_admin' | 'maintenance' | 'management' | 'system_admin';
+type UiStatus = 'active' | 'inactive';
+
+type UserRow = {
+  id: string;
+  fullName: string;
+  username: string;
+  email: string;
+  role: UiRole;
+  status: UiStatus;
+  lastLogin?: string;
+  studentId?: string;
+};
+
+type UserForm = {
+  fullName: string;
+  email: string;
+  role: UiRole;
+  studentId: string;
+  tempPassword: boolean;
+};
+
+const toUiRole = (role?: string): UiRole => {
+  const value = String(role || '').trim().toLowerCase().replace(/\s+/g, '_');
+  const map: Record<string, UiRole> = {
+    student: 'student',
+    dorm_admin: 'dorm_admin',
+    maintenance_staff: 'maintenance',
+    maintenance: 'maintenance',
+    management: 'management',
+    system_admin: 'system_admin',
+  };
+  return map[value] || 'student';
+};
+
+const toApiRole = (role: UiRole): string => {
+  const map: Record<UiRole, string> = {
+    student: 'Student',
+    dorm_admin: 'Dorm Admin',
+    maintenance: 'Maintenance Staff',
+    management: 'Management',
+    system_admin: 'System Admin',
+  };
+  return map[role];
+};
+
+const toUiStatus = (status?: string): UiStatus => (String(status || '').toLowerCase() === 'inactive' ? 'inactive' : 'active');
+
+const roleColors: Record<UiRole, string> = {
+  system_admin: 'border-destructive/30 text-destructive',
+  dorm_admin: 'border-primary/30 text-primary',
+  maintenance: 'border-warning/30 text-warning',
+  management: 'border-info/30 text-info',
+  student: 'border-success/30 text-success',
+};
+
+const roleLabels: Record<UiRole, string> = {
+  student: 'Student',
+  dorm_admin: 'Dorm Admin',
+  maintenance: 'Maintenance',
+  management: 'Management',
+  system_admin: 'System Admin',
+};
+
+const defaultForm: UserForm = {
+  fullName: '',
+  email: '',
+  role: 'dorm_admin',
+  studentId: '',
+  tempPassword: true,
+};
+
+const mapUser = (user: {
+  id?: string;
+  _id?: string;
+  fullName?: string;
+  username?: string;
+  email?: string;
+  role?: string;
+  status?: string;
+  lastLogin?: string;
+  studentId?: string;
+}): UserRow => ({
+  id: user.id || user._id || '',
+  fullName: user.fullName || '',
+  username: user.username || '',
+  email: user.email || '',
+  role: toUiRole(user.role),
+  status: toUiStatus(user.status),
+  lastLogin: user.lastLogin,
+  studentId: user.studentId,
+});
+
 const UserManagementPage = () => {
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<UserRow | null>(null);
+  const [formData, setFormData] = useState<UserForm>(defaultForm);
 
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    role: 'dorm_admin',
-    studentId: '',
-    tempPassword: true,
-  });
+  const loadUsers = useCallback(async () => {
+    setLoading(true);
+    const params: { role?: string; status?: string; search?: string } = {};
+    if (roleFilter !== 'all') params.role = toApiRole(roleFilter as UiRole);
+    if (statusFilter !== 'all') params.status = statusFilter === 'active' ? 'Active' : 'Inactive';
+    if (search.trim()) params.search = search.trim();
+
+    const result = await apiService.getUsers(params);
+    if (result.success && result.data?.users) {
+      setUsers(result.data.users.map((u) => mapUser(u as unknown as Parameters<typeof mapUser>[0])));
+      setLoading(false);
+      return;
+    }
+
+    setUsers([]);
+    setLoading(false);
+  }, [roleFilter, search, statusFilter]);
 
   useEffect(() => {
-    const loadUsers = async () => {
-      try {
-        const result = await apiService.getUsers();
-        if (result.success && result.data?.users) {
-          setUsers(result.data.users);
-        }
-      } catch (error) {
-        console.error('Failed to load users:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadUsers();
-  }, []);
+  }, [loadUsers]);
 
-  const filtered = users.filter(u => {
-    if (search && !u.fullName?.toLowerCase().includes(search.toLowerCase()) && !u.username?.toLowerCase().includes(search.toLowerCase())) return false;
-    if (roleFilter !== 'all' && u.role !== roleFilter) return false;
-    if (statusFilter !== 'all' && u.status !== statusFilter) return false;
-    return true;
-  });
+  const filtered = useMemo(() => {
+    return users.filter((u) => {
+      if (search && !u.fullName.toLowerCase().includes(search.toLowerCase()) && !u.username.toLowerCase().includes(search.toLowerCase()) && !u.email.toLowerCase().includes(search.toLowerCase())) return false;
+      if (roleFilter !== 'all' && u.role !== roleFilter) return false;
+      if (statusFilter !== 'all' && u.status !== statusFilter) return false;
+      return true;
+    });
+  }, [users, search, roleFilter, statusFilter]);
+
+  const resetModal = () => {
+    setIsModalOpen(false);
+    setEditingUser(null);
+    setFormData(defaultForm);
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      if (editingUser) {
-        const result = await apiService.updateUser(editingUser.id, formData);
-        if (result.success) {
-          toast.success('User updated successfully');
-          setUsers(users.map(u => u.id === editingUser.id ? { ...u, ...formData } : u));
-        }
-      } else {
-        const result = await apiService.createUser({
-          fullName: formData.fullName,
-          email: formData.email,
-          role: formData.role,
-          studentId: formData.studentId || undefined,
-          tempPassword: formData.tempPassword,
-        });
-        if (result.success && result.data) {
-          toast.success('User created successfully');
-          setUsers([...users, result.data]);
-        }
+
+    if (editingUser) {
+      const result = await apiService.updateUser(editingUser.id, {
+        fullName: formData.fullName,
+        email: formData.email,
+        role: toApiRole(formData.role),
+        studentId: formData.studentId || undefined,
+      });
+
+      if (result.success) {
+        toast.success('User updated successfully');
+        await loadUsers();
+        resetModal();
+        return;
       }
-      setIsModalOpen(false);
-      setEditingUser(null);
-      setFormData({ fullName: '', email: '', role: 'dorm_admin', studentId: '', tempPassword: true });
-    } catch (error) {
-      toast.error(editingUser ? 'Failed to update user' : 'Failed to create user');
+
+      toast.error(result.error || 'Failed to update user');
+      return;
     }
+
+    const result = await apiService.createUser({
+      fullName: formData.fullName,
+      email: formData.email,
+      role: toApiRole(formData.role),
+      studentId: formData.studentId || undefined,
+      tempPassword: formData.tempPassword,
+    });
+
+    if (result.success) {
+      toast.success('User created successfully');
+      await loadUsers();
+      resetModal();
+      return;
+    }
+
+    toast.error(result.error || 'Failed to create user');
   };
 
   const handleDeactivate = async (id: string) => {
-    try {
-      const result = await apiService.deactivateUser(id);
-      if (result.success) {
-        toast.success('User deactivated successfully');
-        setUsers(users.map(u => u.id === id ? { ...u, status: 'inactive' } : u));
-      }
-    } catch (error) {
-      toast.error('Failed to deactivate user');
+    const result = await apiService.deactivateUser(id);
+    if (result.success) {
+      toast.success('User deactivated successfully');
+      await loadUsers();
+      return;
     }
+
+    toast.error(result.error || 'Failed to deactivate user');
   };
 
   const handleReactivate = async (id: string) => {
-    try {
-      const result = await apiService.reactivateUser(id);
-      if (result.success) {
-        toast.success('User reactivated successfully');
-        setUsers(users.map(u => u.id === id ? { ...u, status: 'active' } : u));
-      }
-    } catch (error) {
-      toast.error('Failed to reactivate user');
+    const result = await apiService.reactivateUser(id);
+    if (result.success) {
+      toast.success('User reactivated successfully');
+      await loadUsers();
+      return;
     }
+
+    toast.error(result.error || 'Failed to reactivate user');
   };
 
   const handleResetPassword = async (id: string) => {
-    try {
-      const result = await apiService.resetUserPassword(id);
-      if (result.success) {
-        toast.success('Password reset link sent');
-      }
-    } catch (error) {
-      toast.error('Failed to send password reset link');
+    const result = await apiService.resetUserPassword(id);
+    if (result.success) {
+      toast.success(result.data?.message || 'Password reset initiated');
+      return;
     }
-  };
 
-  const roleColors: Record<string, string> = {
-    system_admin: 'border-destructive/30 text-destructive',
-    dorm_admin: 'border-primary/30 text-primary',
-    maintenance: 'border-warning/30 text-warning',
-    management: 'border-info/30 text-info',
-    student: 'border-success/30 text-success',
+    toast.error(result.error || 'Failed to reset password');
   };
 
   if (loading) {
@@ -146,16 +245,21 @@ const UserManagementPage = () => {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">{users.length} registered users</p>
         </div>
-        <Button className="gradient-primary text-primary-foreground h-9 text-sm" onClick={() => { setEditingUser(null); setIsModalOpen(true); }}>
-          <Plus className="w-4 h-4 mr-1" /> Add User
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="h-9 text-sm" onClick={loadUsers}>
+            <RefreshCw className="w-4 h-4 mr-1" /> Refresh
+          </Button>
+          <Button className="gradient-primary text-primary-foreground h-9 text-sm" onClick={() => { setEditingUser(null); setFormData(defaultForm); setIsModalOpen(true); }}>
+            <Plus className="w-4 h-4 mr-1" /> Add User
+          </Button>
+        </div>
       </div>
 
       <Card className="glass rounded-xl p-4">
         <div className="flex flex-wrap gap-3 items-center">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Search users..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10 bg-secondary/30 border-border/30 h-9 text-sm" />
+            <Input placeholder="Search users..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10 bg-secondary/30 border-border/30 h-9 text-sm" />
           </div>
           <Select value={roleFilter} onValueChange={setRoleFilter}>
             <SelectTrigger className="w-40 bg-secondary/30 border-border/30 h-9 text-sm">
@@ -202,7 +306,7 @@ const UserManagementPage = () => {
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                        {u.fullName?.split(' ').map(n => n[0]).join('')}
+                        {u.fullName.split(' ').map((n) => n[0]).join('').slice(0, 2)}
                       </div>
                       <div>
                         <p className="text-sm font-medium text-foreground">{u.fullName}</p>
@@ -212,14 +316,12 @@ const UserManagementPage = () => {
                   </td>
                   <td className="px-5 py-3 text-sm font-mono text-muted-foreground">{u.username}</td>
                   <td className="px-5 py-3">
-                    <Badge variant="outline" className={cn("text-[10px] capitalize", roleColors[u.role] || '')}>
-                      {u.role.replace('_', ' ')}
+                    <Badge variant="outline" className={cn('text-[10px]', roleColors[u.role])}>
+                      {roleLabels[u.role]}
                     </Badge>
                   </td>
                   <td className="px-5 py-3">
-                    <Badge variant="outline" className={cn("text-[10px]",
-                      u.status === 'active' ? 'border-success/30 text-success' : 'border-destructive/30 text-destructive'
-                    )}>
+                    <Badge variant="outline" className={cn('text-[10px]', u.status === 'active' ? 'border-success/30 text-success' : 'border-destructive/30 text-destructive')}>
                       {u.status}
                     </Badge>
                   </td>
@@ -228,7 +330,22 @@ const UserManagementPage = () => {
                   </td>
                   <td className="px-5 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-primary hover:bg-primary/10" onClick={() => { setEditingUser(u); setFormData(u); setIsModalOpen(true); }}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0 text-primary hover:bg-primary/10"
+                        onClick={() => {
+                          setEditingUser(u);
+                          setFormData({
+                            fullName: u.fullName,
+                            email: u.email,
+                            role: u.role,
+                            studentId: u.studentId || '',
+                            tempPassword: false,
+                          });
+                          setIsModalOpen(true);
+                        }}
+                      >
                         <Edit className="w-4 h-4" />
                       </Button>
                       {u.status === 'active' ? (
@@ -237,7 +354,7 @@ const UserManagementPage = () => {
                         </Button>
                       ) : (
                         <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-success hover:bg-success/10" onClick={() => handleReactivate(u.id)}>
-                          <Edit className="w-4 h-4" />
+                          <RefreshCw className="w-4 h-4" />
                         </Button>
                       )}
                       <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted/10" onClick={() => handleResetPassword(u.id)}>
@@ -252,7 +369,6 @@ const UserManagementPage = () => {
         </div>
       </Card>
 
-      {/* Add/Edit User Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="glass border-primary/30">
           <DialogHeader>
@@ -261,16 +377,16 @@ const UserManagementPage = () => {
           <form onSubmit={handleSave} className="space-y-4">
             <div className="space-y-2">
               <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Full Name</Label>
-              <Input value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} required className="bg-secondary/40 border-white/5" />
+              <Input value={formData.fullName} onChange={(e) => setFormData((prev) => ({ ...prev, fullName: e.target.value }))} required className="bg-secondary/40 border-white/5" />
             </div>
             <div className="space-y-2">
               <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Email</Label>
-              <Input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} required className="bg-secondary/40 border-white/5" />
+              <Input type="email" value={formData.email} onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))} required className="bg-secondary/40 border-white/5" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Role</Label>
-                <Select value={formData.role} onValueChange={(val) => setFormData({ ...formData, role: val })}>
+                <Select value={formData.role} onValueChange={(val) => setFormData((prev) => ({ ...prev, role: val as UiRole }))}>
                   <SelectTrigger className="bg-secondary/40 border-white/5">
                     <SelectValue />
                   </SelectTrigger>
@@ -285,13 +401,21 @@ const UserManagementPage = () => {
               </div>
               <div className="space-y-2">
                 <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Student ID (Optional)</Label>
-                <Input value={formData.studentId} onChange={e => setFormData({ ...formData, studentId: e.target.value })} className="bg-secondary/40 border-white/5" />
+                <Input value={formData.studentId} onChange={(e) => setFormData((prev) => ({ ...prev, studentId: e.target.value }))} className="bg-secondary/40 border-white/5" />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <input type="checkbox" id="tempPassword" checked={formData.tempPassword} onChange={e => setFormData({ ...formData, tempPassword: e.target.checked })} className="rounded border-border/30 bg-secondary/30" />
-              <Label htmlFor="tempPassword" className="text-sm text-muted-foreground">Generate temporary password</Label>
-            </div>
+            {!editingUser && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="tempPassword"
+                  checked={formData.tempPassword}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, tempPassword: e.target.checked }))}
+                  className="rounded border-border/30 bg-secondary/30"
+                />
+                <Label htmlFor="tempPassword" className="text-sm text-muted-foreground">Generate temporary password</Label>
+              </div>
+            )}
             <DialogFooter className="pt-4">
               <Button type="submit" className="gradient-primary text-primary-foreground">Save User</Button>
             </DialogFooter>

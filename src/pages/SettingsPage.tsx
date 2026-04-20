@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Settings, Save, Shield, Bell, DoorOpen, Wrench, Users, RefreshCw, Database, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { getSettings, saveSettings } from '@/lib/local-store';
 import { cn } from '@/lib/utils';
+import { apiService } from '@/lib/api';
+import type { SystemSettings } from '@/lib/api';
 
 const Toggle = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) => (
   <button
@@ -48,25 +49,63 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
 );
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState(() => getSettings());
+  const [settings, setSettings] = useState<SystemSettings>({
+    systemName: '',
+    adminEmail: '',
+    sessionTimeout: 30,
+    allowStudentRoomChange: true,
+    requireApprovalForMaintenance: false,
+    maxRoomChangeRequestsPerStudent: 2,
+    notificationsEnabled: true,
+    maintenanceAutoAssign: false,
+    theme: 'dark',
+    language: 'en',
+  });
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      const result = await apiService.getSettings();
+      if (result.success && result.data) {
+        setSettings(result.data);
+      }
+    };
+
+    load();
+  }, []);
 
   const set = (key: string, value: any) => setSettings((s: any) => ({ ...s, [key]: value }));
 
   const handleSave = () => {
     setSaving(true);
-    setTimeout(() => {
-      saveSettings(settings);
+    apiService.saveSettings(settings).then((result) => {
+      if (result.success) {
+        toast.success('Settings saved successfully.');
+      } else {
+        toast.error(result.error || 'Failed to save settings.');
+      }
       setSaving(false);
-      toast.success('Settings saved successfully.');
-    }, 600);
+    });
   };
 
   const handleReset = () => {
-    if (window.confirm('Reset all local data to defaults? This cannot be undone.')) {
-      ['dms_room_changes', 'dms_maintenance', 'dms_notifications', 'dms_audit_logs',
-       'dms_rooms', 'dms_students', 'dms_settings', 'dms_dashboard'].forEach(k => localStorage.removeItem(k));
-      toast.success('All data reset to defaults. Refresh the page.');
+    if (window.confirm('Reset system settings to defaults? This cannot be undone.')) {
+      const defaults = {
+        systemName: 'OBU Dormitory Management System',
+        adminEmail: 'admin@obu.edu.et',
+        sessionTimeout: 30,
+        allowStudentRoomChange: true,
+        requireApprovalForMaintenance: false,
+        maxRoomChangeRequestsPerStudent: 2,
+        notificationsEnabled: true,
+        maintenanceAutoAssign: false,
+        theme: 'dark',
+        language: 'en',
+      } satisfies SystemSettings;
+
+      setSettings(defaults);
+      apiService.saveSettings(defaults);
+      toast.success('Settings reset to defaults.');
     }
   };
 
@@ -150,7 +189,7 @@ export default function SettingsPage() {
       <Section icon={Database} title="Data Management">
         <div className="p-4 rounded-xl bg-destructive/5 border border-destructive/20 space-y-3">
           <p className="text-sm font-semibold text-destructive">Danger Zone</p>
-          <p className="text-xs text-muted-foreground">Reset all locally stored data (rooms, students, requests, logs) back to mock defaults. This action cannot be undone.</p>
+            <p className="text-xs text-muted-foreground">Reset the persisted system settings back to defaults. This action cannot be undone.</p>
           <Button variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10 h-9 text-sm" onClick={handleReset}>
             Reset All Local Data
           </Button>
@@ -158,10 +197,10 @@ export default function SettingsPage() {
         <div className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-white/5">
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <div>
-            <p className="text-xs font-semibold text-foreground">Storage Mode: Local</p>
-            <p className="text-[10px] text-muted-foreground">All data is stored in browser localStorage. Connect a backend via <code className="text-primary">VITE_API_URL</code> to switch to live mode.</p>
+            <p className="text-xs font-semibold text-foreground">Storage Mode: Backend</p>
+            <p className="text-[10px] text-muted-foreground">System preferences are read from and saved to the backend via <code className="text-primary">VITE_API_URL</code>.</p>
           </div>
-          <Badge variant="outline" className="ml-auto border-emerald-400/30 text-emerald-400 text-[10px]">DEMO</Badge>
+          <Badge variant="outline" className="ml-auto border-emerald-400/30 text-emerald-400 text-[10px]">LIVE</Badge>
         </div>
       </Section>
     </div>

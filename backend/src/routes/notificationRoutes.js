@@ -2,6 +2,8 @@ import { Router } from "express";
 
 import { notificationController } from "../controllers/notificationController.js";
 import { authorizeRoles, requireAuth } from "../middlewares/authMiddleware.js";
+import { validate } from "../validators/index.js";
+import { broadcastSchema } from "../validators/notificationValidator.js";
 
 const router = Router();
 
@@ -12,7 +14,8 @@ router.put("/notifications/read-all", requireAuth, notificationController.markAl
 router.post(
   "/notifications/broadcast",
   requireAuth,
-  authorizeRoles("Dorm Admin", "Management", "System Admin"),
+  authorizeRoles("dorm_admin", "management", "system_admin"),
+  validate(broadcastSchema),
   notificationController.broadcastNotification
 );
 

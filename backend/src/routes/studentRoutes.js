@@ -5,10 +5,11 @@ import { authorizeRoles, requireAuth } from "../middlewares/authMiddleware.js";
 
 const router = Router();
 
-router.use(requireAuth, authorizeRoles("Student"));
+// Mount all student endpoints under /student
+router.use("/student", requireAuth, authorizeRoles("student"));
 
-router.get("/assignment", studentController.getMyAssignment);
-router.get("/maintenance-requests", studentController.getMyMaintenanceRequests);
-router.get("/profile", studentController.getStudentProfile);
+router.get("/student/assignment", studentController.getMyAssignment);
+router.get("/student/maintenance-requests", studentController.getMyMaintenanceRequests);
+router.get("/student/profile", studentController.getStudentProfile);
 
 export { router as studentRoutes };

@@ -3,6 +3,28 @@ import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 import { ApiError } from "../utils/ApiError.js";
 
+/**
+ * Maps DB role values (Title Case) → API role tokens (snake_case).
+ * This lets the DB enum stay as-is while the JWT and frontend
+ * always deal with consistent snake_case role strings.
+ */
+const DB_ROLE_TO_API_ROLE = {
+  "Student": "student",
+  "Dorm Admin": "dorm_admin",
+  "Maintenance Staff": "maintenance",
+  "Management": "management",
+  "System Admin": "system_admin",
+};
+
+/** Also accept snake_case roles in case they are already normalised */
+const API_ROLES = new Set(Object.values(DB_ROLE_TO_API_ROLE));
+
+export const normaliseRole = (role) => {
+  if (!role) return "student";
+  if (API_ROLES.has(role)) return role;
+  return DB_ROLE_TO_API_ROLE[role] || role.toLowerCase().replace(/\s+/g, "_");
+};
+
 export const requireAuth = (req, res, next) => {
   const authorization = req.headers.authorization;
 
@@ -16,7 +38,7 @@ export const requireAuth = (req, res, next) => {
     const decoded = jwt.verify(token, env.jwtSecret);
     req.user = {
       id: decoded.sub,
-      role: decoded.role,
+      role: normaliseRole(decoded.role),
     };
 
     next();
@@ -25,14 +47,19 @@ export const requireAuth = (req, res, next) => {
   }
 };
 
-export const authorizeRoles = (...allowedRoles) => (req, res, next) => {
-  if (!req.user?.role) {
-    throw new ApiError(401, "Unauthorized");
-  }
+/**
+ * Accepts snake_case role strings (matching the frontend's UserRole type):
+ *   "student" | "dorm_admin" | "maintenance" | "management" | "system_admin"
+ */
+export const authorizeRoles = (...allowedRoles) =>
+  (req, res, next) => {
+    if (!req.user?.role) {
+      throw new ApiError(401, "Unauthorized");
+    }
 
-  if (!allowedRoles.includes(req.user.role)) {
-    throw new ApiError(403, "Insufficient permission");
-  }
+    if (!allowedRoles.includes(req.user.role)) {
+      throw new ApiError(403, "Insufficient permission");
+    }
 
-  next();
-};
+    next();
+  };

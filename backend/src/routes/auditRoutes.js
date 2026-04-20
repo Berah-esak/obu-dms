@@ -5,7 +5,7 @@ import { authorizeRoles, requireAuth } from "../middlewares/authMiddleware.js";
 
 const router = Router();
 
-router.use(requireAuth, authorizeRoles("System Admin"));
+router.use(requireAuth, authorizeRoles("system_admin", "management"));
 
 router.get("/audit-logs", auditController.getAuditLogs);
 router.get("/audit-logs/export", auditController.exportAuditLogs);

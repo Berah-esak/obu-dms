@@ -1,13 +1,26 @@
-import type { LoginRequest, LoginResponse, User, Student, Dorm, Room, Assignment, RoomChangeRequest, MaintenanceRequest, FurnitureItem, LinenRecord, KeyRecord, Notification, AuditLog, DashboardSummary } from '@/types/api';
+import type { LoginRequest, LoginResponse, User, Student, Dorm, Room, Assignment, RoomAssignment, RoomChangeRequest, MaintenanceRequest, FurnitureItem, LinenRecord, KeyRecord, Notification, AuditLog, DashboardSummary } from '@/types/api';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-interface ApiResponse<T> {
+export interface ApiResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
   code?: string;
   timestamp?: string;
+}
+
+export interface SystemSettings {
+  systemName: string;
+  adminEmail: string;
+  sessionTimeout: number;
+  allowStudentRoomChange: boolean;
+  requireApprovalForMaintenance: boolean;
+  maxRoomChangeRequestsPerStudent: number;
+  notificationsEnabled: boolean;
+  maintenanceAutoAssign: boolean;
+  theme: string;
+  language: string;
 }
 
 class ApiService {
@@ -36,13 +49,16 @@ class ApiService {
       const errorData = await response.json().catch(() => ({}));
       return {
         success: false,
-        error: errorData.error || `HTTP ${response.status}`,
+        error: errorData.message || errorData.error || `HTTP ${response.status}`,
         code: errorData.code || `HTTP_${response.status}`,
         timestamp: new Date().toISOString(),
       };
     }
-    const data = await response.json().catch(() => null);
-    return { success: true, data };
+    const json = await response.json().catch(() => null);
+    if (json && typeof json === 'object' && 'success' in json && 'data' in json) {
+      return { success: true, data: json.data };
+    }
+    return { success: true, data: json };
   }
 
   async login(username: string, password: string): Promise<ApiResponse<LoginResponse>> {
@@ -96,6 +112,27 @@ class ApiService {
     }
   }
 
+  async forgotPassword(identifier: string): Promise<ApiResponse<{ message: string }>> {
+    return this.fetch(`${API_BASE_URL}/auth/forgot-password`, {
+      method: 'POST',
+      body: JSON.stringify({ identifier }),
+    });
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<ApiResponse<{ message: string }>> {
+    return this.fetch(`${API_BASE_URL}/auth/reset-password`, {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
+    });
+  }
+
+  async registerStudent(data: any): Promise<ApiResponse<{ message: string; user: any; student: any }>> {
+    return this.fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Student endpoints
   async getStudentProfile(): Promise<ApiResponse<Student>> {
     return this.fetch(`${API_BASE_URL}/student/profile`);
@@ -107,6 +144,19 @@ class ApiService {
 
   async getStudentMaintenanceRequests(limit: number = 10, offset: number = 0): Promise<ApiResponse<{ requests: MaintenanceRequest[]; total: number }>> {
     return this.fetch(`${API_BASE_URL}/student/maintenance-requests?limit=${limit}&offset=${offset}`);
+  }
+
+  async getStudents(params?: { department?: string; year?: number; search?: string }): Promise<ApiResponse<{ users: Student[]; total: number }>> {
+    const query = new URLSearchParams({ role: 'student', ...params } as Record<string, string>).toString();
+    return this.fetch(`${API_BASE_URL}/users${query ? `?${query}` : ''}`);
+  }
+
+  async updateStudent(studentId: string, data: Partial<Student>): Promise<ApiResponse<Student>> {
+    return this.fetch(`${API_BASE_URL}/users/${studentId}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  async deleteStudent(studentId: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.fetch(`${API_BASE_URL}/users/${studentId}/deactivate`, { method: 'POST' });
   }
 
   // Dorm endpoints
@@ -219,7 +269,7 @@ class ApiService {
     return this.fetch(`${API_BASE_URL}/maintenance-requests/${requestId}/status`, { method: 'PUT', body: JSON.stringify({ status, resolutionNotes }) });
   }
 
-  async addMaintenanceNote(requestId: string, note: string, isInternal: boolean = false): Promise<ApiResponse<{ note: any }>> {
+  async addMaintenanceNote(requestId: string, note: string, isInternal: boolean = false): Promise<ApiResponse<{ note: unknown }>> {
     return this.fetch(`${API_BASE_URL}/maintenance-requests/${requestId}/notes`, { method: 'POST', body: JSON.stringify({ note, isInternal }) });
   }
 
@@ -265,22 +315,22 @@ class ApiService {
     return this.fetch(`${API_BASE_URL}/reports/dashboard-summary`);
   }
 
-  async getOccupancyReport(params?: { startDate?: string; endDate?: string; building?: string; floor?: number }): Promise<ApiResponse<any>> {
+  async getOccupancyReport(params?: { startDate?: string; endDate?: string; building?: string; floor?: number }): Promise<ApiResponse<unknown>> {
     const query = new URLSearchParams(params as Record<string, string>).toString();
     return this.fetch(`${API_BASE_URL}/reports/occupancy${query ? `?${query}` : ''}`);
   }
 
-  async getStudentDirectoryReport(params?: { department?: string; year?: number; building?: string }): Promise<ApiResponse<{ students: any[] }>> {
+  async getStudentDirectoryReport(params?: { department?: string; year?: number; building?: string }): Promise<ApiResponse<{ students: Student[] }>> {
     const query = new URLSearchParams(params as Record<string, string>).toString();
     return this.fetch(`${API_BASE_URL}/reports/student-directory${query ? `?${query}` : ''}`);
   }
 
-  async getMaintenanceSummary(params?: { startDate?: string; endDate?: string }): Promise<ApiResponse<any>> {
+  async getMaintenanceSummary(params?: { startDate?: string; endDate?: string }): Promise<ApiResponse<unknown>> {
     const query = new URLSearchParams(params as Record<string, string>).toString();
     return this.fetch(`${API_BASE_URL}/reports/maintenance-summary${query ? `?${query}` : ''}`);
   }
 
-  async getRoomUtilization(): Promise<ApiResponse<{ rooms: any[] }>> {
+  async getRoomUtilization(): Promise<ApiResponse<{ rooms: Array<Record<string, unknown>> }>> {
     return this.fetch(`${API_BASE_URL}/reports/room-utilization`);
   }
 
@@ -292,7 +342,7 @@ class ApiService {
     return this.fetch(`${API_BASE_URL}/reports/inventory-condition`);
   }
 
-  async exportReport(reportType: string, format: string, filters: Record<string, any> = {}): Promise<ApiResponse<{ fileUrl: string; expiresAt: string }>> {
+  async exportReport(reportType: string, format: string, filters: Record<string, unknown> = {}): Promise<ApiResponse<{ fileUrl: string; expiresAt: string }>> {
     return this.fetch(`${API_BASE_URL}/reports/export`, { method: 'POST', body: JSON.stringify({ reportType, format, filters }) });
   }
 
@@ -310,7 +360,7 @@ class ApiService {
     return this.fetch(`${API_BASE_URL}/users/${userId}`);
   }
 
-  async updateUser(userId: string, data: Partial<User>): Promise<ApiResponse<User>> {
+  async updateUser(userId: string, data: Partial<User> | Record<string, unknown>): Promise<ApiResponse<User>> {
     return this.fetch(`${API_BASE_URL}/users/${userId}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
@@ -363,14 +413,57 @@ class ApiService {
     return this.fetch(`${API_BASE_URL}/audit-logs/export${query ? `?${query}` : ''}`);
   }
 
+  async getSettings(): Promise<ApiResponse<SystemSettings>> {
+    return this.fetch(`${API_BASE_URL}/settings`);
+  }
+
+  async saveSettings(settings: SystemSettings): Promise<ApiResponse<SystemSettings>> {
+    return this.fetch(`${API_BASE_URL}/settings`, { method: 'PUT', body: JSON.stringify(settings) });
+  }
+
   // Generic fetch helper
-  private async fetch(url: string, options: RequestInit = {}): Promise<ApiResponse<any>> {
+  private async fetch<T = unknown>(url: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     try {
-      const response = await fetch(url, {
+      let response = await fetch(url, {
         ...options,
         headers: { ...this.getHeaders(), ...options.headers },
       });
-      return this.handleResponse(response);
+
+      if (response.status === 401 && this.refreshToken && !url.includes('/auth/refresh') && !url.includes('/auth/login')) {
+        const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: this.refreshToken })
+        }).catch(() => null);
+
+        if (refreshResponse && refreshResponse.ok) {
+          const refreshData = await refreshResponse.json().catch(() => null);
+          if (refreshData?.token || refreshData?.data?.token) {
+            const newToken = refreshData.token || refreshData.data.token;
+            this.token = newToken;
+            localStorage.setItem('dms_token', newToken);
+            
+            const newRefreshToken = refreshData.refreshToken || refreshData.data?.refreshToken;
+            if (newRefreshToken) {
+              this.refreshToken = newRefreshToken;
+              localStorage.setItem('dms_refresh_token', newRefreshToken);
+            }
+            
+            response = await fetch(url, {
+              ...options,
+              headers: { ...this.getHeaders(), ...options.headers },
+            });
+          } else {
+            this.clearAuth();
+            window.location.href = '/login';
+          }
+        } else {
+          this.clearAuth();
+          window.location.href = '/login';
+        }
+      }
+
+      return this.handleResponse<T>(response);
     } catch (error) {
       return { success: false, error: 'Network error', code: 'NETWORK_ERROR' };
     }

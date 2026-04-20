@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRightLeft, CheckCircle2, XCircle, Clock, Plus, Filter } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,10 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import {
-  getRoomChangeRequests, addRoomChangeRequest,
-  updateRoomChangeRequest, genId, addAuditLog, getRooms
-} from '@/lib/local-store';
+import { apiService } from '@/lib/api';
 
 const REASON_LABELS: Record<string, string> = {
   conflict: 'Roommate Conflict',
@@ -26,14 +23,7 @@ const RoomChangesPage = () => {
   const { user, hasRole } = useAuth();
   const isAdmin = hasRole(['dorm_admin', 'system_admin']);
 
-  const [requests, setRequests] = useState<any[]>(() => {
-    const all = getRoomChangeRequests();
-    // students only see their own
-    if (!hasRole(['dorm_admin', 'system_admin', 'management'])) {
-      return all.filter((r: any) => r.student?.studentId === user?.studentId || r.student?.email === user?.email);
-    }
-    return all;
-  });
+  const [requests, setRequests] = useState<any[]>([]);
 
   const [statusFilter, setStatusFilter] = useState('all');
   const [isNewOpen, setIsNewOpen] = useState(false);
@@ -45,69 +35,81 @@ const RoomChangesPage = () => {
   const [approveForm, setApproveForm] = useState({ newRoomId: '' });
   const [rejectForm, setRejectForm] = useState({ rejectionReason: '' });
 
-  const availableRooms = getRooms().filter((r: any) => r.status === 'Available');
+  const [availableRooms, setAvailableRooms] = useState<any[]>([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const [requestsResult, roomsResult] = await Promise.all([
+        isAdmin ? apiService.getPendingRoomChangeRequests() : apiService.getMyRoomChangeRequests(),
+        apiService.getAvailableRooms(),
+      ]);
+
+      if (requestsResult.success && requestsResult.data?.requests) {
+        setRequests(requestsResult.data.requests as any[]);
+      }
+      if (roomsResult.success && roomsResult.data?.rooms) {
+        setAvailableRooms(roomsResult.data.rooms as any[]);
+      }
+    };
+
+    load();
+  }, [isAdmin]);
 
   const filtered = statusFilter === 'all' ? requests : requests.filter(r => r.status === statusFilter);
 
-  const refresh = () => {
-    const all = getRoomChangeRequests();
-    if (!isAdmin) {
-      setRequests(all.filter((r: any) => r.student?.email === user?.email));
-    } else {
-      setRequests(all);
+  const refresh = async () => {
+    const result = isAdmin ? await apiService.getPendingRoomChangeRequests() : await apiService.getMyRoomChangeRequests();
+    if (result.success && result.data?.requests) {
+      setRequests(result.data.requests as any[]);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newForm.description.trim()) {
       toast.error('Please provide a description.');
       return;
     }
-    const req = {
-      id: genId('rc'),
-      student: {
-        studentId: user?.studentId || user?.id,
-        fullName: user?.fullName,
-        email: user?.email,
-        department: 'Computer Science',
-        year: 3,
-      },
-      currentRoom: { roomId: 'BLK-A-402', building: 'Block A', floor: 4, roomNumber: '402' },
-      reason: newForm.reason,
-      description: newForm.description,
-      status: 'pending',
-      submittedAt: new Date().toISOString(),
-    };
-    addRoomChangeRequest(req);
-    addAuditLog({ id: genId('al'), timestamp: new Date().toISOString(), user: user?.username || 'student', action: 'CREATE', entity: 'room_change', entityId: req.id, ipAddress: '127.0.0.1', status: 'SUCCESS', details: `Room change request submitted by ${user?.fullName}` });
-    toast.success('Room change request submitted successfully.');
-    setIsNewOpen(false);
-    setNewForm({ reason: 'conflict', description: '' });
-    refresh();
+    const result = await apiService.submitRoomChangeRequest(newForm);
+    if (result.success) {
+      toast.success('Room change request submitted successfully.');
+      setIsNewOpen(false);
+      setNewForm({ reason: 'conflict', description: '' });
+      await refresh();
+      return;
+    }
+
+    toast.error(result.error || 'Failed to submit request.');
   };
 
-  const handleApprove = (e: React.FormEvent) => {
+  const handleApprove = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!approveForm.newRoomId) { toast.error('Please select a new room.'); return; }
-    const newRoom = availableRooms.find((r: any) => r.roomId === approveForm.newRoomId);
-    updateRoomChangeRequest(selectedReq.id, { status: 'approved', requestedRoom: newRoom });
-    addAuditLog({ id: genId('al'), timestamp: new Date().toISOString(), user: user?.username || 'admin', action: 'APPROVE', entity: 'room_change', entityId: selectedReq.id, ipAddress: '127.0.0.1', status: 'SUCCESS', details: `Approved room change for ${selectedReq.student?.fullName} → ${approveForm.newRoomId}` });
-    toast.success('Room change approved.');
-    setIsApproveOpen(false);
-    setApproveForm({ newRoomId: '' });
-    refresh();
+    const result = await apiService.approveRoomChange(selectedReq.id, approveForm.newRoomId);
+    if (result.success) {
+      toast.success('Room change approved.');
+      setIsApproveOpen(false);
+      setApproveForm({ newRoomId: '' });
+      await refresh();
+      return;
+    }
+
+    toast.error(result.error || 'Failed to approve request.');
   };
 
-  const handleReject = (e: React.FormEvent) => {
+  const handleReject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rejectForm.rejectionReason.trim()) { toast.error('Please provide a rejection reason.'); return; }
-    updateRoomChangeRequest(selectedReq.id, { status: 'rejected', rejectionReason: rejectForm.rejectionReason });
-    addAuditLog({ id: genId('al'), timestamp: new Date().toISOString(), user: user?.username || 'admin', action: 'REJECT', entity: 'room_change', entityId: selectedReq.id, ipAddress: '127.0.0.1', status: 'SUCCESS', details: `Rejected room change for ${selectedReq.student?.fullName}` });
-    toast.success('Room change rejected.');
-    setIsRejectOpen(false);
-    setRejectForm({ rejectionReason: '' });
-    refresh();
+    const result = await apiService.rejectRoomChange(selectedReq.id, rejectForm.rejectionReason);
+    if (result.success) {
+      toast.success('Room change rejected.');
+      setIsRejectOpen(false);
+      setRejectForm({ rejectionReason: '' });
+      await refresh();
+      return;
+    }
+
+    toast.error(result.error || 'Failed to reject request.');
   };
 
   const pendingCount = requests.filter(r => r.status === 'pending').length;
