@@ -1,328 +1,275 @@
-# Oda Bultum University Dormitory Management System (DMS)
+# 🏠 Dormitory Management System (DMS)
 
-A comprehensive Dormitory Management System built for Oda Bultum University (OBU) using React, TypeScript, and Vite. This frontend application provides a modern interface for managing all aspects of university dormitory operations including student accommodations, room assignments, maintenance requests, and inventory management.
+A comprehensive web-based dormitory management system built for educational institutions to manage student housing, room assignments, maintenance requests, and administrative tasks.
 
-## 🎯 Project Overview
+## 🌟 Features
 
-This system is derived from the OBU-DMS SRS (Version 1.0, January 2026) and focuses specifically on frontend functionality, user interactions, and API integration. The system serves multiple user roles with role-based access control and provides a responsive, accessible interface for both desktop and mobile users.
+### 👨‍🎓 Student Portal
+- **Room Assignment View** - See assigned room details and roommate information
+- **Maintenance Requests** - Submit and track maintenance requests with photo attachments
+- **Exit Clearance** - Request exit clearance with item verification
+- **Profile Management** - Update personal information and contact details
+- **Notifications** - Receive updates on requests and announcements
 
-## 👥 User Roles
+### 👨‍💼 Admin Dashboard
+- **Student Management** - Add, edit, and manage student records
+- **Room Assignment** - Assign students to rooms with automatic allocation
+- **Maintenance Management** - Review, approve, and track maintenance requests
+- **Exit Clearance Processing** - Approve/reject exit requests with verification
+- **Inventory Management** - Track furniture, linens, and key assignments
+- **Reports & Analytics** - Generate occupancy and maintenance reports
+- **User Management** - Manage staff accounts and permissions
 
-- **Student**: View profile, room assignments, submit maintenance requests, request room changes
-- **Dorm Administrator**: Manage rooms, assign rooms, approve/reject requests, manage students
-- **Maintenance Staff**: View and update maintenance requests, track task assignments
-- **Management**: Access reports, statistics, and overview dashboards
-- **System Admin**: User management, system configuration, audit logs
+### 🔧 Maintenance Staff Portal
+- **Task Management** - View assigned maintenance tasks
+- **Status Updates** - Update work progress and completion status
+- **Resource Tracking** - Log materials and time spent
 
-## 🚀 Core Modules
-
-### 🔐 Authentication Module
-- Login with username/password
-- Forgot password functionality with email reset
-- Session timeout management (30 minutes inactivity)
-- Token-based authentication
-
-### 👤 Student Module
-- View and update student profiles
-- Search and filter students (admin functionality)
-- View current room assignments
-- Personal dashboard
-
-### 🏠 Room Management Module
-- View rooms with filtering by building and floor
-- Check room availability status
-- Manual room assignment (admin only)
-- Room details and occupancy information
-
-### 🔄 Room Change Module
-- Submit room change requests (students)
-- Approve/reject room change requests (admin)
-- Track request status and history
-- Notification system for status updates
-
-### 🔧 Maintenance Module
-- Submit maintenance requests
-- Track request status and progress
-- Admin task assignment to maintenance staff
-- Staff status updates and completion tracking
-
-### 📦 Inventory Management Module
-- Track furniture inventory
-- Manage linen supplies
-- Key tracking and assignment
-- Inventory reports and alerts
-
-### 📊 Reporting Module
-- Occupancy reports and statistics
-- Student directory generation
-- System performance analytics
-- Export functionality for reports
-
-### 👥 User Management Module
-- Create and manage user accounts
-- Role-based access control
-- View system activity logs
-- User permission management
-
-### 🔔 Notification Module
-- System notifications and alerts
-- Administrative announcements
-- Real-time updates for requests
-- Notification history and preferences
-
-## 🎨 UI/UX Features
-
-### Responsive Design
-- Mobile-friendly interface
-- Desktop-optimized layouts
-- Cross-browser compatibility
-- Adaptive components
-
-### Role-Based Dashboards
-- **Student Dashboard**: Personal information, room details, quick actions
-- **Admin Dashboard**: System overview, pending requests, key metrics
-- **Maintenance Dashboard**: Assigned tasks, request queue, status updates
-- **Management Dashboard**: Analytics, reports, system health
-
-### Accessibility Features
-- Multi-language support (English, Amharic, Afan Oromo)
-- High contrast mode support
-- Keyboard navigation optimization
-- Screen reader compatibility
-
-### UI Components
-- Paginated data tables
-- Form validation and error handling
-- Advanced search and filtering
-- Notification panels and toasts
-- Interactive charts and graphs
+### 🏢 Management Features
+- **System Settings** - Configure system parameters and policies
+- **Audit Logs** - Track all system activities and changes
+- **Notifications** - Broadcast announcements to users
+- **Role-based Access** - Granular permission control
 
 ## 🛠️ Technology Stack
 
-- **Frontend**: React 18.3.1 with TypeScript
-- **Build Tool**: Vite 5.4.19
-- **UI Framework**: shadcn/ui with Radix UI components
-- **Styling**: Tailwind CSS 3.4.17
-- **State Management**: TanStack Query (React Query)
-- **Routing**: React Router DOM 6.30.1
-- **Form Handling**: React Hook Form with Zod validation
-- **Charts**: Recharts for data visualization
-- **Icons**: Lucide React
-- **Testing**: Vitest with React Testing Library
-- **E2E Testing**: Playwright
-- **Linting**: ESLint with TypeScript support
+### Backend
+- **Node.js** - Runtime environment
+- **Express.js** - Web framework
+- **Firebase Firestore** - NoSQL database
+- **Firebase Admin SDK** - Authentication and database access
+- **JWT** - Authentication tokens
+- **Multer** - File upload handling
+- **Joi** - Data validation
+- **bcryptjs** - Password hashing
 
-## 📋 Prerequisites
+### Frontend
+- **React 18** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Build tool and dev server
+- **Tailwind CSS** - Styling framework
+- **Shadcn/ui** - UI component library
+- **React Router** - Client-side routing
+- **Lucide React** - Icons
+- **Sonner** - Toast notifications
 
-- Node.js (v18 or higher)
-- npm, yarn, or bun package manager
+### Database
+- **Firebase Firestore** - Document-based NoSQL database
+- **Collections**: Users, Students, Rooms, Assignments, Maintenance Requests, Exit Requests, Notifications, Audit Logs
 
-## 🚀 Getting Started
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
+- Firebase project with Firestore enabled
 
 ### Installation
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd oda-bultum-dms
-```
+1. **Clone the repository**
+   ```bash
+   git clone git@github.com:Berah-esak/obu-dms.git
+   cd obu-dms
+   ```
 
-2. Install dependencies:
-```bash
-npm install
-# or
-yarn install
-# or
-bun install
-```
+2. **Install dependencies**
+   ```bash
+   # Install frontend dependencies
+   npm install
+   
+   # Install backend dependencies
+   cd backend
+   npm install
+   cd ..
+   ```
 
-### Development
+3. **Configure Firebase**
+   - Create a Firebase project at https://console.firebase.google.com
+   - Enable Firestore Database
+   - Generate a service account key
+   - Update `backend/.env` with your Firebase credentials:
+   
+   ```env
+   PORT=5001
+   JWT_SECRET=your_jwt_secret_key
+   JWT_EXPIRES_IN=7d
+   CORS_ORIGIN=*
+   
+   FIREBASE_PROJECT_ID=your_project_id
+   FIREBASE_CLIENT_EMAIL=your_service_account_email
+   FIREBASE_PRIVATE_KEY="your_private_key"
+   ```
 
-Start the development server:
+4. **Configure Frontend**
+   ```env
+   # .env
+   VITE_API_URL=http://localhost:5001/api
+   ```
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-bun dev
-```
+5. **Seed the database**
+   ```bash
+   cd backend
+   npm run seed
+   ```
 
-The application will be available at `http://localhost:8080`
+6. **Start the application**
+   ```bash
+   # Start backend (in backend directory)
+   npm run dev
+   
+   # Start frontend (in root directory)
+   npm run dev
+   ```
 
-### Build for Production
+7. **Access the application**
+   - Frontend: http://localhost:5173
+   - Backend API: http://localhost:5001
 
-```bash
-npm run build
-# or
-yarn build
-# or
-bun build
-```
+## 👥 Default Users
 
-### Preview Production Build
+After seeding, you can login with these accounts:
 
-```bash
-npm run preview
-# or
-yarn preview
-# or
-bun preview
-```
-
-## 🧪 Testing
-
-### Unit Tests
-
-```bash
-# Run tests once
-npm run test
-
-# Run tests in watch mode
-npm run test:watch
-```
-
-### E2E Tests
-
-```bash
-# Run Playwright tests
-npx playwright test
-```
-
-## 🔧 Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run build:dev` - Build for development mode
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-- `npm run test` - Run unit tests
-- `npm run test:watch` - Run tests in watch mode
+| Role | Username | Password | Description |
+|------|----------|----------|-------------|
+| System Admin | `admin` | `Admin@2026` | Full system access |
+| Dorm Admin | `dormadmin` | `Dormadmin@2026` | Dormitory management |
+| Maintenance | `maint_mark` | `Admin@2026` | Maintenance tasks |
+| Student | `sam.student` | `Admin@2026` | Student portal |
+| Student | `sally.student` | `Admin@2026` | Student portal |
 
 ## 📁 Project Structure
 
 ```
-oda-bultum-dms/
-├── src/
-│   ├── components/          # Reusable UI components
-│   │   └── ui/             # shadcn/ui components
-│   ├── contexts/           # React contexts
-│   ├── hooks/              # Custom React hooks
-│   ├── lib/                # Utility functions
-│   ├── pages/              # Page components
-│   ├── test/               # Test files
-│   ├── types/              # TypeScript type definitions
-│   ├── App.tsx             # Main App component
-│   ├── main.tsx            # Application entry point
-│   └── index.css           # Global styles
-├── public/                 # Static assets
-├── docs/                   # Documentation
-└── tests/                  # Test configurations
+obu-dms/
+├── backend/                 # Backend API server
+│   ├── src/
+│   │   ├── config/         # Configuration files
+│   │   ├── controllers/    # Route controllers
+│   │   ├── middlewares/    # Express middlewares
+│   │   ├── models/         # Database models
+│   │   ├── repositories/   # Data access layer
+│   │   ├── routes/         # API routes
+│   │   ├── services/       # Business logic
+│   │   ├── utils/          # Utility functions
+│   │   └── validators/     # Input validation
+│   ├── package.json
+│   └── server.js           # Entry point
+├── src/                    # Frontend React app
+│   ├── components/         # Reusable components
+│   ├── contexts/          # React contexts
+│   ├── hooks/             # Custom hooks
+│   ├── lib/               # Utilities and API client
+│   ├── pages/             # Page components
+│   └── types/             # TypeScript types
+├── public/                # Static assets
+├── docs/                  # Documentation
+└── package.json
 ```
 
-## 🌐 Application Routes
+## 🔐 Authentication & Authorization
 
-- `/` - Landing page
-- `/login` - User authentication
-- `/dashboard` - Main dashboard
-- `/rooms` - Room management
-- `/students` - Student management
-- `/maintenance` - Maintenance tracking
-- `/room-changes` - Room change requests
-- `/inventory` - Inventory management
-- `/reports` - Reports and analytics
-- `/notifications` - Notification center
-- `/users` - User management
-- `/audit-logs` - Activity logs
-- `/profile` - User profile
-- `/settings` - Application settings
+The system uses JWT-based authentication with role-based access control:
 
-## 🎨 Customization
+- **Students** - Can view their assignments, submit requests, manage profile
+- **Dorm Admin** - Can manage students, rooms, approve requests
+- **Maintenance Staff** - Can view and update assigned maintenance tasks
+- **Management** - Can access reports and system analytics
+- **System Admin** - Full system access and user management
 
-### Theme Configuration
+## 📊 API Documentation
 
-The application supports light and dark themes with system preference detection. Theme settings are managed through the `ThemeProvider` component.
+### Authentication Endpoints
+- `POST /api/auth/login` - User login
+- `POST /api/auth/logout` - User logout
+- `POST /api/auth/register` - Student registration
+- `POST /api/auth/forgot-password` - Password reset request
+- `POST /api/auth/reset-password` - Password reset
 
-### Multi-language Support
+### Student Endpoints
+- `GET /api/student/profile` - Get student profile
+- `GET /api/student/assignment` - Get room assignment
+- `GET /api/student/maintenance-requests` - Get maintenance history
 
-The system is designed to support multiple languages:
-- English (default)
-- Amharic
-- Afan Oromo
+### Maintenance Endpoints
+- `POST /api/maintenance-requests` - Submit maintenance request
+- `GET /api/maintenance-requests` - Get all requests (admin)
+- `PUT /api/maintenance-requests/:id/approve` - Approve request
+- `PUT /api/maintenance-requests/:id/reject` - Reject request
+- `PUT /api/maintenance-requests/:id/status` - Update status
 
-Language files and configurations can be found in the `src/lib/i18n/` directory.
+### Room Management
+- `GET /api/rooms` - Get rooms with filters
+- `POST /api/rooms` - Create new room
+- `PUT /api/rooms/:id` - Update room
+- `GET /api/rooms/available` - Get available rooms
 
-### Component Customization
+[View complete API documentation](docs/API_REFERENCE.md)
 
-UI components are built with shadcn/ui and can be customized in the `src/components/ui/` directory. All components follow accessibility guidelines and can be themed according to institutional requirements.
+## 🧪 Testing
 
-## � Performance Requirements
+### Manual Testing
+1. Start both backend and frontend servers
+2. Login with different user roles
+3. Test each feature workflow:
+   - Student: Submit maintenance request
+   - Admin: Approve/reject requests
+   - Maintenance: Update task status
 
-- **Page Load Time**: < 3 seconds
-- **Search Response**: < 2 seconds
-- **Concurrent Users**: Optimized for high concurrent usage
-- **Mobile Performance**: Optimized for mobile networks
+### Test Scenarios
+- Room assignment and display
+- Maintenance request workflow
+- Exit clearance process
+- User authentication and authorization
+- File upload functionality
 
-## 🔒 Security Features
+## 📈 Features Roadmap
 
-- Token-based authentication with JWT
-- Role-based UI rendering and access control
-- Client-side input validation and sanitization
-- Session timeout and automatic logout (30 minutes)
-- Secure API communication
+### Phase 1 (Completed) ✅
+- [x] User authentication and authorization
+- [x] Student room assignments
+- [x] Maintenance request system
+- [x] Admin dashboard
+- [x] Role-based access control
 
-## 🔌 API Integration
+### Phase 2 (In Progress)
+- [ ] Exit clearance system
+- [ ] Inventory management
+- [ ] Notification system
+- [ ] Report generation
 
-The frontend is designed to integrate with a RESTful API. Key API endpoints include:
-
-- Authentication: `/auth/*`
-- Students: `/students/*`
-- Rooms: `/rooms/*`
-- Maintenance: `/maintenance/*`
-- Inventory: `/inventory/*`
-- Reports: `/reports/*`
-- Notifications: `/notifications/*`
-
-For detailed API specifications, refer to the API documentation.
-
-## � Environment Variables
-
-Create a `.env` file in the root directory for environment-specific configuration:
-
-```env
-VITE_API_URL=http://localhost:3000
-VITE_APP_NAME=Oda Bultum DMS
-VITE_SESSION_TIMEOUT=1800000
-VITE_DEFAULT_LANGUAGE=en
-```
+### Phase 3 (Planned)
+- [ ] Mobile app (React Native)
+- [ ] Real-time notifications (WebSocket)
+- [ ] Advanced analytics
+- [ ] Integration with student information systems
+- [ ] Automated room allocation algorithms
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## 📝 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 📚 Documentation
-
-- **SRS Document**: Derived from OBU Dormitory Management System SRS v1.0 (January 2026)
-- **API Documentation**: Available in the `/docs` directory
-- **Component Documentation**: Storybook setup available for component exploration
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🆘 Support
 
 For support and questions:
-- Open an issue in the repository
-- Contact the development team
-- Refer to the user manual in the `/docs` directory
+- Create an issue in this repository
+- Check the [documentation](docs/) folder
+- Review the [troubleshooting guide](docs/TROUBLESHOOTING.md)
+
+## 🙏 Acknowledgments
+
+- Built for educational institutions to streamline dormitory management
+- Inspired by modern web development best practices
+- Uses Firebase for reliable cloud infrastructure
+- Designed with accessibility and user experience in mind
 
 ---
 
-**Built with ❤️ for Oda Bultum University**
-
-
+**Built with ❤️ for better dormitory management**

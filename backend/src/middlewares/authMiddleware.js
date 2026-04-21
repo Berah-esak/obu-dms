@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 
 import { env } from "../config/env.js";
 import { ApiError } from "../utils/ApiError.js";
+import { logger } from "../utils/logger.js";
 
 /**
  * Maps DB role values (Title Case) → API role tokens (snake_case).
@@ -36,13 +37,20 @@ export const requireAuth = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, env.jwtSecret);
+    const originalRole = decoded.role;
+    const normalizedRole = normaliseRole(decoded.role);
+    
+    logger.info(`[AUTH DEBUG] Original role from JWT: "${originalRole}", Normalized role: "${normalizedRole}"`);
+    
     req.user = {
       id: decoded.sub,
-      role: normaliseRole(decoded.role),
+      role: normalizedRole,
     };
 
     next();
-  } catch {
+  } catch (error) {
+    logger.error(`[AUTH DEBUG] Token verification failed: ${error.message}`);
+    logger.error(`[AUTH DEBUG] Token (first 20 chars): ${token.substring(0, 20)}...`);
     throw new ApiError(401, "Invalid or expired token");
   }
 };
@@ -56,8 +64,11 @@ export const authorizeRoles = (...allowedRoles) =>
     if (!req.user?.role) {
       throw new ApiError(401, "Unauthorized");
     }
-
+    
+    logger.info(`[AUTH DEBUG] User role: "${req.user.role}", Allowed roles: [${allowedRoles.join(', ')}]`);
+    
     if (!allowedRoles.includes(req.user.role)) {
+      logger.error(`[AUTH DEBUG] Role "${req.user.role}" not in allowed roles: [${allowedRoles.join(', ')}]`);
       throw new ApiError(403, "Insufficient permission");
     }
 

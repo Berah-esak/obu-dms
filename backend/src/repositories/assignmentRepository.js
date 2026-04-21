@@ -1,18 +1,61 @@
-import { Assignment } from "../models/Assignment.js";
+import { getDb } from "../config/firebase.js";
+import { COLLECTIONS } from "../models/index.js";
+
+const col = () => getDb().collection(COLLECTIONS.ASSIGNMENTS);
+
+const toAssignment = (doc) => {
+  if (!doc.exists) return null;
+  return { id: doc.id, ...doc.data() };
+};
 
 export const assignmentRepository = {
-  findActiveByStudent: (studentId) =>
-    Assignment.findOne({ student: studentId, status: "Active" })
-      .populate("student")
-      .populate("room")
-      .populate("dorm"),
-  findById: (id) => Assignment.findById(id),
-  findAll: (filter = {}) => Assignment.find(filter).populate("student room dorm"),
-  create: (payload) => Assignment.create(payload),
-  vacateById: (id) =>
-    Assignment.findByIdAndUpdate(
-      id,
-      { status: "Vacated", endDate: new Date() },
-      { new: true, runValidators: true }
-    ),
+  findActiveByStudent: async (studentUserId) => {
+    // Get all assignments and filter in memory to avoid index requirements
+    const snap = await col().get();
+    const results = snap.docs.map(toAssignment);
+    
+    const activeAssignment = results.find(assignment => 
+      assignment.student === studentUserId && assignment.status === "Active"
+    );
+    
+    return activeAssignment || null;
+  },
+
+  findById: async (id) => {
+    const doc = await col().doc(id).get();
+    return toAssignment(doc);
+  },
+
+  findAll: async (filter = {}) => {
+    // Get all assignments and filter in memory to avoid index requirements
+    const snap = await col().get();
+    let results = snap.docs.map(toAssignment);
+    
+    // Apply filters in memory
+    for (const [key, value] of Object.entries(filter)) {
+      results = results.filter(assignment => assignment[key] === value);
+    }
+    
+    return results;
+  },
+
+  create: async (payload) => {
+    const now = new Date();
+    const data = {
+      ...payload,
+      status: payload.status || "Active",
+      startDate: payload.startDate || now,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const ref = await col().add(data);
+    return { id: ref.id, ...data };
+  },
+
+  vacateById: async (id) => {
+    const ref = col().doc(id);
+    await ref.update({ status: "Vacated", endDate: new Date(), updatedAt: new Date() });
+    const updated = await ref.get();
+    return toAssignment(updated);
+  },
 };

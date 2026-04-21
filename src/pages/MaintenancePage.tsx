@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Wrench, Search, Plus, Camera, Send, AlertCircle, Filter } from 'lucide-react';
+import { Wrench, Search, Plus, Camera, Send, AlertCircle, Filter, CheckCircle2, XCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,33 +18,81 @@ const MaintenancePage = () => {
   const { user, hasRole } = useAuth();
   const isAdmin = hasRole(['dorm_admin', 'system_admin']);
   const isMaint = hasRole(['maintenance']);
+  const isStudent = hasRole(['student']);
 
-  const [requests, setRequests] = useState<any[]>(() => {
-    return [];
-  });
+  const [requests, setRequests] = useState<any[]>([]);
+  const [studentAssignment, setStudentAssignment] = useState<any>(null);
+  const [dormBlocks, setDormBlocks] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<any[]>([]);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [isNewOpen, setIsNewOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const [isApproveOpen, setIsApproveOpen] = useState(false);
+  const [isRejectOpen, setIsRejectOpen] = useState(false);
   const [selectedReq, setSelectedReq] = useState<any>(null);
 
-  const [newForm, setNewForm] = useState({ roomId: '', category: '', priority: '', description: '', imagePreview: '' });
+  const [newForm, setNewForm] = useState({ 
+    category: '', 
+    priority: '', 
+    description: '', 
+    image: null as File | null, 
+    imagePreview: '',
+    dormBlockId: '',
+    roomId: '' 
+  });
   const [statusForm, setStatusForm] = useState({ status: '', resolutionNotes: '' });
+  const [approveForm, setApproveForm] = useState({ notes: '' });
+  const [rejectForm, setRejectForm] = useState({ reason: '' });
 
   const refresh = async () => {
-    const result = isMaint
-      ? await apiService.getMyMaintenanceTasks()
-      : await apiService.getMaintenanceRequests({});
-
-    if (result.success && result.data) {
-      setRequests((result.data as any).requests || (result.data as any).tasks || []);
+    if (isStudent) {
+      // Students see their own maintenance requests
+      const result = await apiService.getStudentMaintenanceRequests();
+      if (result.success && result.data) {
+        setRequests((result.data as any).requests || []);
+      }
+    } else if (isMaint) {
+      // Maintenance staff see assigned tasks
+      const result = await apiService.getMyMaintenanceTasks();
+      if (result.success && result.data) {
+        setRequests((result.data as any).tasks || []);
+      }
+    } else if (isAdmin) {
+      // Admins see pending requests
+      const result = await apiService.getMaintenanceRequests({});
+      if (result.success && result.data) {
+        setRequests((result.data as any).requests || []);
+      }
     }
   };
 
   useEffect(() => {
-    refresh();
+    const loadData = async () => {
+      // Load student's room assignment if student
+      if (isStudent) {
+        const assignmentResult = await apiService.getStudentAssignment();
+        if (assignmentResult.success && assignmentResult.data) {
+          setStudentAssignment(assignmentResult.data);
+          // Pre-fill roomId for students
+          setNewForm(f => ({ ...f, roomId: assignmentResult.data.room || '' }));
+        }
+      }
+      
+      // Load dorm blocks for admins
+      if (isAdmin) {
+        const dormsResult = await apiService.getDorms();
+        if (dormsResult.success && dormsResult.data) {
+          setDormBlocks(dormsResult.data.buildings || []);
+        }
+      }
+      
+      await refresh();
+    };
+    
+    loadData();
   }, [user?.role]);
 
   const filtered = requests.filter(r => {
@@ -56,21 +104,45 @@ const MaintenancePage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newForm.category || !newForm.priority || !newForm.description || !newForm.roomId) {
+    
+    if (!newForm.category || !newForm.priority || !newForm.description) {
       toast.error('Please fill in all required fields.');
       return;
     }
+
+    // For students, use their assigned room
+    let roomId = newForm.roomId;
+    if (isStudent) {
+      if (!studentAssignment?.room) {
+        toast.error('You do not have a room assignment. Please contact administration.');
+        return;
+      }
+      roomId = studentAssignment.room;
+    } else if (isAdmin) {
+      // For admins, require dorm block and room selection
+      if (!newForm.dormBlockId) {
+        toast.error('Please select a dorm block.');
+        return;
+      }
+      if (!newForm.roomId) {
+        toast.error('Please select a room.');
+        return;
+      }
+    }
+
     const result = await apiService.submitMaintenanceRequest({
-      roomId: newForm.roomId,
+      roomId,
+      dormBlockId: newForm.dormBlockId,
       category: newForm.category,
       description: newForm.description,
       priority: newForm.priority,
+      image: newForm.image || undefined,
     });
 
     if (result.success) {
-      toast.success('Request submitted successfully.');
+      toast.success('Maintenance request submitted successfully.');
       setIsNewOpen(false);
-      setNewForm({ roomId: '', category: '', priority: '', description: '', imagePreview: '' });
+      setNewForm({ category: '', priority: '', description: '', image: null, imagePreview: '', dormBlockId: '', roomId: '' });
       await refresh();
       return;
     }
@@ -83,7 +155,7 @@ const MaintenancePage = () => {
     if (!statusForm.status) { toast.error('Select a status.'); return; }
     const result = await apiService.updateMaintenanceStatus(selectedReq.id, statusForm.status, statusForm.resolutionNotes);
     if (result.success) {
-      toast.success('Status updated.');
+      toast.success('Status updated successfully.');
       setIsStatusOpen(false);
       setStatusForm({ status: '', resolutionNotes: '' });
       await refresh();
@@ -93,15 +165,61 @@ const MaintenancePage = () => {
     toast.error(result.error || 'Failed to update status.');
   };
 
+  const handleApprove = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const result = await apiService.approveMaintenanceRequest(selectedReq.id, approveForm.notes);
+    if (result.success) {
+      toast.success('Maintenance request approved.');
+      setIsApproveOpen(false);
+      setApproveForm({ notes: '' });
+      await refresh();
+      return;
+    }
+
+    toast.error(result.error || 'Failed to approve request.');
+  };
+
+  const handleReject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rejectForm.reason.trim()) { 
+      toast.error('Please provide a rejection reason.'); 
+      return; 
+    }
+    const result = await apiService.rejectMaintenanceRequest(selectedReq.id, rejectForm.reason);
+    if (result.success) {
+      toast.success('Maintenance request rejected.');
+      setIsRejectOpen(false);
+      setRejectForm({ reason: '' });
+      await refresh();
+      return;
+    }
+
+    toast.error(result.error || 'Failed to reject request.');
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => setNewForm(f => ({ ...f, imagePreview: reader.result as string }));
+      reader.onloadend = () => setNewForm(f => ({ ...f, image: file, imagePreview: reader.result as string }));
       reader.readAsDataURL(file);
       toast.info('Image attached.');
     }
   };
+
+  const handleDormBlockChange = async (dormBlockId: string) => {
+    setNewForm(f => ({ ...f, dormBlockId, roomId: '' }));
+    setRooms([]);
+    
+    if (dormBlockId) {
+      const roomsResult = await apiService.getRooms({ building: dormBlockId });
+      if (roomsResult.success && roomsResult.data) {
+        setRooms(roomsResult.data.rooms || []);
+      }
+    }
+  };
+
+  const pendingCount = requests.filter(r => r.status === 'pending' || r.status === 'Submitted').length;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -110,11 +228,18 @@ const MaintenancePage = () => {
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Wrench className="w-6 h-6 text-primary" /> Maintenance
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">{filtered.length} request{filtered.length !== 1 ? 's' : ''}</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {isAdmin 
+              ? `${pendingCount} pending request${pendingCount !== 1 ? 's' : ''} awaiting review`
+              : `${filtered.length} request${filtered.length !== 1 ? 's' : ''}`
+            }
+          </p>
         </div>
-        <Button onClick={() => setIsNewOpen(true)} className="gradient-primary text-primary-foreground h-10 shadow-glow">
-          <Plus className="w-4 h-4 mr-2" /> New Request
-        </Button>
+        {(isStudent || isAdmin) && (
+          <Button onClick={() => setIsNewOpen(true)} className="gradient-primary text-primary-foreground h-10 shadow-glow">
+            <Plus className="w-4 h-4 mr-2" /> New Request
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -187,23 +312,42 @@ const MaintenancePage = () => {
                     </div>
                     <p className="text-sm font-medium text-foreground mb-2">{req.description}</p>
                     <div className="flex flex-wrap gap-4 text-[10px] text-muted-foreground font-mono uppercase">
-                      <span className="flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {req.room?.roomId}</span>
-                      <span>👤 {req.submittedBy?.fullName?.split(' ')[0]}</span>
+                      <span className="flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {req.room?.roomNumber || req.room?.roomId || req.roomId || 'N/A'}</span>
+                      <span>👤 {req.submittedBy?.fullName?.split(' ')[0] || 'Unknown'}</span>
                       <span>🕐 {new Date(req.submittedAt).toLocaleDateString()}</span>
-                      <span className="text-primary">#{req.trackingNumber}</span>
+                      {req.trackingNumber && <span className="text-primary">#{req.trackingNumber}</span>}
                     </div>
                     {req.resolutionNotes && (
                       <div className="mt-2 p-2 rounded-lg bg-success/5 border border-success/10">
                         <p className="text-[11px] text-success">✓ {req.resolutionNotes}</p>
                       </div>
                     )}
+                    {req.rejectionReason && (
+                      <div className="mt-2 p-2 rounded-lg bg-destructive/5 border border-destructive/10">
+                        <p className="text-[11px] text-destructive">✗ Rejected: {req.rejectionReason}</p>
+                      </div>
+                    )}
                   </div>
-                  {(isAdmin || isMaint) && req.status !== 'Completed' && req.status !== 'Rejected' && (
-                    <Button size="sm" variant="outline" className="h-8 text-xs border-primary/30 text-primary hover:bg-primary/10 flex-shrink-0"
-                      onClick={() => { setSelectedReq(req); setStatusForm({ status: req.status, resolutionNotes: req.resolutionNotes || '' }); setIsStatusOpen(true); }}>
-                      Update
-                    </Button>
-                  )}
+                  <div className="flex gap-2 flex-shrink-0">
+                    {isAdmin && (req.status === 'pending' || req.status === 'Submitted') && (
+                      <>
+                        <Button size="sm" variant="outline" className="h-8 text-xs border-success/30 text-success hover:bg-success/10"
+                          onClick={() => { setSelectedReq(req); setIsApproveOpen(true); }}>
+                          <CheckCircle2 className="w-3 h-3 mr-1" /> Approve
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-8 text-xs border-destructive/30 text-destructive hover:bg-destructive/10"
+                          onClick={() => { setSelectedReq(req); setIsRejectOpen(true); }}>
+                          <XCircle className="w-3 h-3 mr-1" /> Reject
+                        </Button>
+                      </>
+                    )}
+                    {(isAdmin || isMaint) && req.status !== 'Completed' && req.status !== 'Rejected' && req.status !== 'rejected' && (
+                      <Button size="sm" variant="outline" className="h-8 text-xs border-primary/30 text-primary hover:bg-primary/10"
+                        onClick={() => { setSelectedReq(req); setStatusForm({ status: req.status, resolutionNotes: req.resolutionNotes || '' }); setIsStatusOpen(true); }}>
+                        Update Status
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -220,11 +364,56 @@ const MaintenancePage = () => {
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Room ID *</Label>
-                <Input value={newForm.roomId} onChange={e => setNewForm(f => ({ ...f, roomId: e.target.value }))} placeholder="e.g. BLK-A-402" className="bg-secondary/40 border-white/5" required />
+            {isStudent && studentAssignment && (
+              <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 text-sm">
+                <p className="text-xs text-muted-foreground mb-1">Your Room</p>
+                <p className="font-semibold text-foreground">
+                  {studentAssignment.roomDetails?.roomNumber || 'Room assigned'}
+                </p>
+                {studentAssignment.roomDetails && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {studentAssignment.roomDetails.type} • {studentAssignment.roomDetails.currentOccupancy}/{studentAssignment.roomDetails.capacity} occupied
+                  </p>
+                )}
               </div>
+            )}
+            
+            {isAdmin && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Dorm Block *</Label>
+                  <Select value={newForm.dormBlockId} onValueChange={handleDormBlockChange}>
+                    <SelectTrigger className="bg-secondary/40 border-white/5"><SelectValue placeholder="Select dorm block..." /></SelectTrigger>
+                    <SelectContent>
+                      {dormBlocks.map(dorm => (
+                        <SelectItem key={dorm.id} value={dorm.id}>{dorm.name} ({dorm.code})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Room *</Label>
+                  <Select 
+                    value={newForm.roomId} 
+                    onValueChange={v => setNewForm(f => ({ ...f, roomId: v }))}
+                    disabled={!newForm.dormBlockId}
+                  >
+                    <SelectTrigger className="bg-secondary/40 border-white/5">
+                      <SelectValue placeholder={newForm.dormBlockId ? "Select room..." : "Select dorm block first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {rooms.map(room => (
+                        <SelectItem key={room.id} value={room.id}>
+                          {room.roomNumber} ({room.type}, {room.currentOccupancy}/{room.capacity})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+            
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Category *</Label>
                 <Select value={newForm.category} onValueChange={v => setNewForm(f => ({ ...f, category: v }))}>
@@ -234,16 +423,14 @@ const MaintenancePage = () => {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Priority *</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {['Low', 'Medium', 'High'].map(p => (
-                  <button key={p} type="button" onClick={() => setNewForm(f => ({ ...f, priority: p }))}
-                    className={cn('py-2 rounded-xl text-xs font-bold border transition-all',
-                      newForm.priority === p ? 'bg-primary/20 border-primary text-primary shadow-glow' : 'bg-secondary/40 border-white/5 text-muted-foreground hover:bg-secondary/60'
-                    )}>{p}</button>
-                ))}
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Priority *</Label>
+                <Select value={newForm.priority} onValueChange={v => setNewForm(f => ({ ...f, priority: v }))}>
+                  <SelectTrigger className="bg-secondary/40 border-white/5"><SelectValue placeholder="Select..." /></SelectTrigger>
+                  <SelectContent>
+                    {['Low', 'Medium', 'High'].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="space-y-2">
@@ -291,7 +478,6 @@ const MaintenancePage = () => {
                   <SelectItem value="Submitted">Submitted</SelectItem>
                   <SelectItem value="In Progress">In Progress</SelectItem>
                   <SelectItem value="Completed">Completed</SelectItem>
-                  <SelectItem value="Rejected">Rejected</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -302,6 +488,77 @@ const MaintenancePage = () => {
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsStatusOpen(false)}>Cancel</Button>
               <Button type="submit" className="gradient-primary text-primary-foreground">Save Update</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approve Modal */}
+      <Dialog open={isApproveOpen} onOpenChange={setIsApproveOpen}>
+        <DialogContent className="glass border-success/30 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-success" /> Approve Maintenance Request
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleApprove} className="space-y-4 pt-2">
+            <div className="p-3 rounded-xl bg-secondary/30 border border-white/5 text-sm">
+              <p className="font-mono text-primary text-xs mb-1">{selectedReq?.requestId}</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                Room: {selectedReq?.room?.roomNumber || selectedReq?.room?.roomId || selectedReq?.roomId || 'N/A'}
+              </p>
+              <p className="text-foreground">{selectedReq?.description}</p>
+              <div className="flex gap-2 mt-2">
+                <Badge variant="outline" className="text-[8px]">{selectedReq?.category}</Badge>
+                <Badge variant="outline" className="text-[8px]">{selectedReq?.priority} Priority</Badge>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Admin Notes (Optional)</Label>
+              <Textarea
+                value={approveForm.notes}
+                onChange={e => setApproveForm({ notes: e.target.value })}
+                className="bg-secondary/40 border-white/5 min-h-[70px] resize-none"
+                placeholder="Add any notes about the approval..."
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsApproveOpen(false)}>Cancel</Button>
+              <Button type="submit" className="bg-success text-white hover:bg-success/90">Confirm Approval</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Modal */}
+      <Dialog open={isRejectOpen} onOpenChange={setIsRejectOpen}>
+        <DialogContent className="glass border-destructive/30 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-destructive" /> Reject Maintenance Request
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleReject} className="space-y-4 pt-2">
+            <div className="p-3 rounded-xl bg-secondary/30 border border-white/5 text-sm">
+              <p className="font-mono text-primary text-xs mb-1">{selectedReq?.requestId}</p>
+              <p className="text-xs text-muted-foreground mb-1">
+                Room: {selectedReq?.room?.roomNumber || selectedReq?.room?.roomId || selectedReq?.roomId || 'N/A'}
+              </p>
+              <p className="text-foreground">{selectedReq?.description}</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">Rejection Reason *</Label>
+              <Textarea
+                value={rejectForm.reason}
+                onChange={e => setRejectForm({ reason: e.target.value })}
+                className="bg-secondary/40 border-white/5 min-h-[80px] resize-none"
+                placeholder="Explain why this request is being rejected..."
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsRejectOpen(false)}>Cancel</Button>
+              <Button type="submit" variant="destructive">Confirm Rejection</Button>
             </DialogFooter>
           </form>
         </DialogContent>

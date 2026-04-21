@@ -1,33 +1,39 @@
 import crypto from "node:crypto";
 
-import { Student } from "../models/Student.js";
+import { studentRepository } from "../repositories/studentRepository.js";
 import { userRepository } from "../repositories/userRepository.js";
 import { ApiError } from "../utils/ApiError.js";
 
 const buildUserFilter = (query) => {
   const filter = {};
-
   if (query.role) filter.role = query.role;
   if (query.status) filter.status = query.status;
-  if (query.search) {
-    filter.$or = [
-      { fullName: { $regex: query.search, $options: "i" } },
-      { email: { $regex: query.search, $options: "i" } },
-      { username: { $regex: query.search, $options: "i" } },
-    ];
-  }
-
+  // Note: Firestore doesn't support $regex — text search is handled client-side
+  // or via a dedicated search index. We skip the search filter here and filter
+  // in-memory when a search term is provided.
   return filter;
 };
 
 export const userService = {
   getUsers: async (query) => {
-    const users = await userRepository.findAll(buildUserFilter(query), {
+    const filter = buildUserFilter(query);
+    let users = await userRepository.findAll(filter, {
       limit: Number(query.limit || 25),
       offset: Number(query.offset || 0),
     });
 
-    const total = await userRepository.count(buildUserFilter(query));
+    // In-memory search fallback (for small datasets)
+    if (query.search) {
+      const term = query.search.toLowerCase();
+      users = users.filter(
+        (u) =>
+          u.fullName?.toLowerCase().includes(term) ||
+          u.email?.toLowerCase().includes(term) ||
+          u.username?.toLowerCase().includes(term)
+      );
+    }
+
+    const total = await userRepository.count(filter);
     return { users, total };
   },
 
@@ -51,7 +57,7 @@ export const userService = {
     });
 
     if (payload.role === "Student" && payload.studentId) {
-      await Student.create({
+      await studentRepository.create({
         studentId: payload.studentId,
         fullName: payload.fullName,
         gender: payload.gender || "M",
@@ -71,7 +77,6 @@ export const userService = {
     if (!user) {
       throw new ApiError(404, "User not found");
     }
-
     return user;
   },
 
@@ -80,7 +85,6 @@ export const userService = {
     if (!user) {
       throw new ApiError(404, "User not found");
     }
-
     return user;
   },
 

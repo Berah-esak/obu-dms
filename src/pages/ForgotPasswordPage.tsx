@@ -64,7 +64,7 @@ const ForgotPasswordPage = () => {
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="name.surname@odu.edu.et or +251..."
+                  placeholder="name.surname@gmail.com or +251..."
                   className="pl-3 bg-secondary/50 border-border/50 focus:border-primary/50 h-11"
                   required
                 />

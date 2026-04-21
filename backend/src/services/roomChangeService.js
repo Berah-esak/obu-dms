@@ -55,10 +55,12 @@ export const roomChangeService = {
     if (activeAssignment) {
       await assignmentRepository.vacateById(activeAssignment.id);
       const oldRoom = await roomRepository.findById(activeAssignment.room);
-      if (oldRoom && oldRoom.currentOccupancy > 0) {
-        oldRoom.currentOccupancy -= 1;
-        oldRoom.status = oldRoom.currentOccupancy >= oldRoom.capacity ? "Full" : "Available";
-        await oldRoom.save();
+      if (oldRoom && (oldRoom.currentOccupancy || 0) > 0) {
+        const newOccupancy = oldRoom.currentOccupancy - 1;
+        await roomRepository.updateById(oldRoom.id, {
+          currentOccupancy: newOccupancy,
+          status: newOccupancy >= oldRoom.capacity ? "Full" : "Available",
+        });
       }
     }
 
@@ -70,9 +72,11 @@ export const roomChangeService = {
       reason: "Room change approved",
     });
 
-    room.currentOccupancy += 1;
-    room.status = room.currentOccupancy >= room.capacity ? "Full" : "Available";
-    await room.save();
+    const newOccupancy = (room.currentOccupancy || 0) + 1;
+    await roomRepository.updateById(room.id, {
+      currentOccupancy: newOccupancy,
+      status: newOccupancy >= room.capacity ? "Full" : "Available",
+    });
 
     await roomChangeRepository.updateById(requestId, {
       status: "approved",

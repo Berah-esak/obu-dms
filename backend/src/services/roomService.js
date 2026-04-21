@@ -28,9 +28,8 @@ export const roomService = {
     }
 
     if (!dorm.floors.includes(floorNumber)) {
-      dorm.floors.push(floorNumber);
-      dorm.floors.sort((a, b) => a - b);
-      await dorm.save();
+      const updatedFloors = [...dorm.floors, floorNumber].sort((a, b) => a - b);
+      return dormRepository.updateById(dormId, { floors: updatedFloors });
     }
 
     return dorm;

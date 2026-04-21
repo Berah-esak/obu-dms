@@ -7,10 +7,31 @@ import { userRepository } from "../repositories/userRepository.js";
 import { studentRepository } from "../repositories/studentRepository.js";
 import { ApiError } from "../utils/ApiError.js";
 
-const generateToken = (userId, role) =>
-  jwt.sign({ sub: userId, role }, env.jwtSecret, {
+/**
+ * Maps DB role values (Title Case) → API role tokens (snake_case).
+ */
+const DB_ROLE_TO_API_ROLE = {
+  "Student": "student",
+  "Dorm Admin": "dorm_admin",
+  "Maintenance Staff": "maintenance",
+  "Management": "management",
+  "System Admin": "system_admin",
+};
+
+const normaliseRole = (role) => {
+  if (!role) return "student";
+  // If already normalized, return as-is
+  if (Object.values(DB_ROLE_TO_API_ROLE).includes(role)) return role;
+  // Otherwise, map from DB format
+  return DB_ROLE_TO_API_ROLE[role] || role.toLowerCase().replace(/\s+/g, "_");
+};
+
+const generateToken = (userId, role) => {
+  const normalizedRole = normaliseRole(role);
+  return jwt.sign({ sub: userId, role: normalizedRole }, env.jwtSecret, {
     expiresIn: env.jwtExpiresIn,
   });
+};
 
 export const authService = {
   login: async (payload) => {
@@ -26,15 +47,15 @@ export const authService = {
       throw new ApiError(401, "Invalid credentials");
     }
 
-    const isPasswordValid = await user.comparePassword(payload.password);
+    const isPasswordValid = await userRepository.comparePassword(user.id, payload.password);
     if (!isPasswordValid) {
       throw new ApiError(401, "Invalid credentials");
     }
 
-    user.lastLogin = new Date();
-    await user.save();
+    await userRepository.saveLastLogin(user.id);
 
     const token = generateToken(user.id, user.role);
+    const normalizedRole = normaliseRole(user.role);
     const refreshToken = crypto.randomBytes(48).toString("hex");
     await tokenRepository.createRefreshToken({
       user: user.id,
@@ -45,13 +66,13 @@ export const authService = {
     return {
       token,
       refreshToken,
-      role: user.role,
+      role: normalizedRole,
       user: {
         id: user.id,
         username: user.username,
         fullName: user.fullName,
         email: user.email,
-        role: user.role,
+        role: normalizedRole,
         status: user.status,
       },
     };
@@ -59,8 +80,8 @@ export const authService = {
 
   registerStudent: async (payload) => {
     const email = payload.email?.toLowerCase().trim();
-    if (!email || !email.endsWith("@odu.edu.et")) {
-      throw new ApiError(400, "Registration requires a valid @odu.edu.et university email");
+    if (!email || !email.includes("@")) {
+      throw new ApiError(400, "Registration requires a valid email address");
     }
 
     const existingUser = await userRepository.findByEmail(email);
@@ -108,7 +129,7 @@ export const authService = {
 
     return {
       message: "Registration successful",
-      user: { id: newUser.id, username, email, role: "Student" },
+      user: { id: newUser.id, username, email, role: "student" },
       student: { id: newStudent.id, studentId: newStudent.studentId },
     };
   },
@@ -128,7 +149,7 @@ export const authService = {
     } else {
       const student = await studentRepository.findByPhone(identifier.trim());
       if (student && student.user) {
-        user = await userRepository.findById(student.user._id || student.user);
+        user = await userRepository.findById(student.user);
       }
     }
 
@@ -170,7 +191,7 @@ export const authService = {
 
     return {
       valid: true,
-      role: user.role,
+      role: normaliseRole(user.role),
     };
   },
 };

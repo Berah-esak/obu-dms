@@ -1,6 +1,7 @@
 import { assignmentRepository } from "../repositories/assignmentRepository.js";
 import { maintenanceRepository } from "../repositories/maintenanceRepository.js";
 import { studentRepository } from "../repositories/studentRepository.js";
+import { roomRepository } from "../repositories/roomRepository.js";
 import { ApiError } from "../utils/ApiError.js";
 
 export const studentService = {
@@ -10,12 +11,44 @@ export const studentService = {
       throw new ApiError(404, "Student profile not found");
     }
 
-    const assignment = await assignmentRepository.findActiveByStudent(student.id);
-    if (!assignment) {
+    // Look for assignment document using user ID (not student.id)
+    const assignment = await assignmentRepository.findActiveByStudent(userId);
+    if (!assignment && student.roomId) {
+      // Fetch room details for fallback assignment
+      const roomDetails = await roomRepository.findById(student.roomId);
+      
+      return {
+        id: student.id,
+        student: userId,
+        room: student.roomId,
+        dormBlock: student.dormBlockId,
+        status: "Active",
+        startDate: student.createdAt || new Date(),
+        roomDetails: roomDetails ? {
+          id: roomDetails.id,
+          roomNumber: roomDetails.roomNumber,
+          type: roomDetails.type,
+          capacity: roomDetails.capacity,
+          currentOccupancy: roomDetails.currentOccupancy
+        } : null
+      };
+    } else if (!assignment) {
       throw new ApiError(404, "No active assignment found");
     }
 
-    return assignment;
+    // Fetch room details to include in response
+    const roomDetails = await roomRepository.findById(assignment.room);
+    
+    return {
+      ...assignment,
+      roomDetails: roomDetails ? {
+        id: roomDetails.id,
+        roomNumber: roomDetails.roomNumber,
+        type: roomDetails.type,
+        capacity: roomDetails.capacity,
+        currentOccupancy: roomDetails.currentOccupancy
+      } : null
+    };
   },
 
   getMaintenanceHistory: async (userId, query) => {

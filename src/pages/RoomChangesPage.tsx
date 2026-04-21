@@ -48,7 +48,11 @@ const RoomChangesPage = () => {
         setRequests(requestsResult.data.requests as any[]);
       }
       if (roomsResult.success && roomsResult.data?.rooms) {
+        console.log('Available rooms loaded:', roomsResult.data.rooms.length, 'rooms');
+        console.log('First room sample:', roomsResult.data.rooms[0]);
         setAvailableRooms(roomsResult.data.rooms as any[]);
+      } else {
+        console.error('Failed to load available rooms:', roomsResult);
       }
     };
 
@@ -190,10 +194,10 @@ const RoomChangesPage = () => {
                         </Badge>
                       </div>
                       <div className="flex items-center gap-2 text-xs mb-2">
-                        <span className="bg-secondary/50 px-2 py-0.5 rounded font-mono text-foreground">{req.currentRoom?.roomId}</span>
+                        <span className="bg-secondary/50 px-2 py-0.5 rounded font-mono text-foreground">{req.currentRoom?.roomNumber || req.currentRoom?.roomId || 'Unknown'}</span>
                         <ArrowRightLeft className="w-3 h-3 text-muted-foreground" />
                         {req.status === 'approved' && req.requestedRoom ? (
-                          <span className="bg-success/10 px-2 py-0.5 rounded font-mono text-success">{req.requestedRoom.roomId}</span>
+                          <span className="bg-success/10 px-2 py-0.5 rounded font-mono text-success">{req.requestedRoom.roomNumber || req.requestedRoom.roomId || 'Unknown'}</span>
                         ) : req.status === 'pending' ? (
                           <span className="text-muted-foreground italic">Awaiting assignment</span>
                         ) : (
@@ -293,13 +297,20 @@ const RoomChangesPage = () => {
                   <SelectValue placeholder="Select available room..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableRooms.map((r: any) => (
-                    <SelectItem key={r.roomId} value={r.roomId}>
-                      {r.roomId} — {r.building} Fl.{r.floor} ({r.genderRestriction})
-                    </SelectItem>
-                  ))}
+                  {availableRooms.length === 0 ? (
+                    <div className="p-2 text-xs text-muted-foreground">No available rooms found</div>
+                  ) : (
+                    availableRooms.map((r: any) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.roomNumber} — {r.dorm?.name || r.dorm?.code || 'Unknown'} Fl.{r.floor} ({r.genderRestriction})
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {availableRooms.length} available room{availableRooms.length !== 1 ? 's' : ''} loaded
+              </p>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsApproveOpen(false)}>Cancel</Button>

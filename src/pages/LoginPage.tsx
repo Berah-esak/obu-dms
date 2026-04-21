@@ -232,7 +232,7 @@ const LoginPage = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs text-foreground/80">University Email</Label>
-                    <Input type="email" value={regForm.email} onChange={e => setRegForm({ ...regForm, email: e.target.value })} placeholder="name@odu.edu.et" className="bg-secondary/50 h-10 text-sm" required />
+                    <Input type="email" value={regForm.email} onChange={e => setRegForm({ ...regForm, email: e.target.value })} placeholder="name@gmail.com" className="bg-secondary/50 h-10 text-sm" required />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs text-foreground/80">Phone Number</Label>

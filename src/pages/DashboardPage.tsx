@@ -17,6 +17,9 @@ import {
 } from 'recharts';
 import { apiService } from '@/lib/api';
 import type { DashboardSummary, MaintenanceRequest, Notification, RoomChangeRequest, Room } from '@/types/api';
+import { ExitRequestForm } from '@/components/ExitRequestForm';
+import { ExitRequestList } from '@/components/ExitRequestList';
+import { ExitRequestApproval } from '@/components/ExitRequestApproval';
 
 const T = {
   tooltip: { background: 'hsl(220,18%,10%)', border: '1px solid hsl(220,15%,20%)', borderRadius: '12px', color: 'hsl(210,40%,95%)' },
@@ -51,6 +54,7 @@ function StudentDashboard() {
   const [myMaint, setMyMaint] = useState<MaintenanceRequest[]>([]);
   const [myChanges, setMyChanges] = useState<RoomChangeRequest[]>([]);
   const [notifs, setNotifs] = useState<Notification[]>([]);
+  const [exitRequestRefresh, setExitRequestRefresh] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -72,6 +76,10 @@ function StudentDashboard() {
       active = false;
     };
   }, []);
+
+  const handleExitRequestSuccess = () => {
+    setExitRequestRefresh(prev => prev + 1);
+  };
 
   const unread = notifs.filter((n: any) => !n.isRead).length;
   const activeMaint = myMaint.filter((r: any) => r.status !== 'Completed' && r.status !== 'Rejected');
@@ -193,6 +201,10 @@ function StudentDashboard() {
         </Card>
       )}
 
+      {/* Exit Clearance Section */}
+      <ExitRequestForm onSuccess={handleExitRequestSuccess} />
+      <ExitRequestList refreshTrigger={exitRequestRefresh} />
+
       {/* Notifications */}
       <Card className="glass border-white/5">
         <CardHeader className="pb-2 pt-4 px-4">
@@ -234,6 +246,7 @@ function AdminDashboard() {
   const [roomChanges, setRoomChanges] = useState<RoomChangeRequest[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [exitRequestRefresh, setExitRequestRefresh] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -259,6 +272,10 @@ function AdminDashboard() {
       active = false;
     };
   }, []);
+
+  const handleExitRequestAction = () => {
+    setExitRequestRefresh(prev => prev + 1);
+  };
 
   const unread = notifications.filter((n: any) => !n.isRead).length;
   const pendingMaint = maintenance.filter((m: any) => m.status === 'Submitted').length;
@@ -393,14 +410,21 @@ function AdminDashboard() {
         </CardContent>
       </Card>
 
-      {/* Bottom row — pending + recent */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Pending approvals */}
+      {/* Bottom row — exit clearance + pending + recent */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Exit Clearance Approval - Show for dorm_admin and system_admin */}
+        {(user?.role === 'dorm_admin' || user?.role === 'system_admin') && (
+          <ExitRequestApproval 
+            refreshTrigger={exitRequestRefresh}
+          />
+        )}
+
+        {/* Pending room change approvals */}
         {pendingChanges > 0 && (
           <Card className="glass border-warning/10">
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                <Clock className="w-4 h-4 text-warning" /> Pending Approvals
+                <Clock className="w-4 h-4 text-warning" /> Pending Room Changes
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -417,7 +441,7 @@ function AdminDashboard() {
           </Card>
         )}
 
-        {/* Recent maintenance */}
+        {/* Recent maintenance - Show when no pending room changes or as second item */}
         <Card className="glass border-white/5">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-2">

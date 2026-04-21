@@ -44,6 +44,7 @@ export const roomController = {
 
   getAvailableRooms: asyncHandler(async (req, res) => {
     const data = await roomService.getAvailableRooms(req.query);
+    console.log(`[DEBUG] Returning ${data.rooms?.length || 0} available rooms`);
     res.status(200).json({ success: true, data });
   }),
 

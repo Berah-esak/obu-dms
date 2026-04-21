@@ -1,6 +1,8 @@
 import { maintenanceService } from "../services/maintenanceService.js";
 import { auditService } from "../services/auditService.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/ApiError.js";
+import { submitMaintenanceSchema } from "../validators/maintenanceValidator.js";
 
 export const maintenanceController = {
   getMaintenanceRequests: asyncHandler(async (req, res) => {
@@ -8,8 +10,33 @@ export const maintenanceController = {
     res.status(200).json({ success: true, data });
   }),
 
+  getPendingMaintenanceRequests: asyncHandler(async (req, res) => {
+    const data = await maintenanceService.getPending();
+    res.status(200).json({ success: true, data });
+  }),
+
   submitMaintenanceRequest: asyncHandler(async (req, res) => {
-    const data = await maintenanceService.submit(req.user.id, req.body);
+    // Validate the request body after multer has parsed it
+    const { error } = submitMaintenanceSchema.validate(req.body, {
+      abortEarly: false,
+      stripUnknown: true,
+      convert: true,
+    });
+    
+    if (error) {
+      const details = error.details.map((d) => d.message);
+      throw new ApiError(400, details.join("; "));
+    }
+    
+    // Handle file attachment if present
+    const attachment = req.file ? {
+      filename: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      buffer: req.file.buffer,
+    } : null;
+
+    const data = await maintenanceService.submit(req.user.id, req.body, attachment);
     
     auditService.log({
       user: req.user.id,
@@ -24,6 +51,34 @@ export const maintenanceController = {
 
   getAssignedRequests: asyncHandler(async (req, res) => {
     const data = await maintenanceService.getAssigned(req.user.id);
+    res.status(200).json({ success: true, data });
+  }),
+
+  approveMaintenanceRequest: asyncHandler(async (req, res) => {
+    const data = await maintenanceService.approve(req.params.requestId, req.body, req.user.id);
+    
+    auditService.log({
+      user: req.user.id,
+      action: "APPROVE",
+      entity: "MaintenanceRequest",
+      entityId: req.params.requestId,
+      ipAddress: req.ip,
+    });
+
+    res.status(200).json({ success: true, data });
+  }),
+
+  rejectMaintenanceRequest: asyncHandler(async (req, res) => {
+    const data = await maintenanceService.reject(req.params.requestId, req.body, req.user.id);
+    
+    auditService.log({
+      user: req.user.id,
+      action: "REJECT",
+      entity: "MaintenanceRequest",
+      entityId: req.params.requestId,
+      ipAddress: req.ip,
+    });
+
     res.status(200).json({ success: true, data });
   }),
 

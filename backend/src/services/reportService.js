@@ -1,20 +1,26 @@
-import { Assignment } from "../models/Assignment.js";
-import { FurnitureItem } from "../models/FurnitureItem.js";
-import { MaintenanceRequest } from "../models/MaintenanceRequest.js";
-import { Room } from "../models/Room.js";
-import { Student } from "../models/Student.js";
+import { getDb } from "../config/firebase.js";
+import { COLLECTIONS } from "../models/index.js";
+import { assignmentRepository } from "../repositories/assignmentRepository.js";
+import { studentRepository } from "../repositories/studentRepository.js";
+import { roomRepository } from "../repositories/roomRepository.js";
+
+const col = (name) => getDb().collection(name);
 
 export const reportService = {
   getDashboardSummary: async () => {
-    const totalStudents = await Student.countDocuments();
-    const totalRooms = await Room.countDocuments();
-    const occupiedBeds = await Room.aggregate([
-      { $group: { _id: null, total: { $sum: "$currentOccupancy" } } },
+    const [studentsSnap, roomsSnap, maintenanceSnap] = await Promise.all([
+      col(COLLECTIONS.STUDENTS).count().get(),
+      col(COLLECTIONS.ROOMS).get(),
+      col(COLLECTIONS.MAINTENANCE_REQUESTS).where("status", "==", "Submitted").count().get(),
     ]);
-    const totalBeds = await Room.aggregate([{ $group: { _id: null, total: { $sum: "$capacity" } } }]);
-    const pendingMaintenance = await MaintenanceRequest.countDocuments({ status: "Submitted" });
-    const occupiedTotal = occupiedBeds[0]?.total || 0;
-    const totalBedCapacity = totalBeds[0]?.total || 0;
+
+    const totalStudents = studentsSnap.data().count;
+    const pendingMaintenance = maintenanceSnap.data().count;
+
+    const rooms = roomsSnap.docs.map((d) => d.data());
+    const totalRooms = rooms.length;
+    const occupiedTotal = rooms.reduce((sum, r) => sum + (r.currentOccupancy || 0), 0);
+    const totalBedCapacity = rooms.reduce((sum, r) => sum + (r.capacity || 0), 0);
     const availableBeds = totalBedCapacity - occupiedTotal;
 
     return {
@@ -27,18 +33,19 @@ export const reportService = {
   },
 
   getOccupancyReport: async (query = {}) => {
-    const rooms = await Room.find({}).populate("dormId", "name code");
+    const rooms = await roomRepository.findAll({});
     const filteredRooms = query.building
       ? rooms.filter(
-          (room) => room.dormId?.name === query.building || room.dormId?.code === query.building
+          (room) =>
+            room.dorm?.name === query.building || room.dorm?.code === query.building
         )
       : rooms;
 
     const totalRooms = filteredRooms.length;
-    const occupiedRooms = filteredRooms.filter((room) => room.currentOccupancy > 0).length;
+    const occupiedRooms = filteredRooms.filter((room) => (room.currentOccupancy || 0) > 0).length;
     const data = filteredRooms.map((room) => ({
       floor: room.floor,
-      occupancyRate: room.capacity ? (room.currentOccupancy / room.capacity) * 100 : 0,
+      occupancyRate: room.capacity ? ((room.currentOccupancy || 0) / room.capacity) * 100 : 0,
     }));
 
     return {
@@ -55,22 +62,33 @@ export const reportService = {
     if (query.department) filter.department = query.department;
     if (query.year) filter.year = Number(query.year);
 
-    const students = await Student.find(filter);
+    const students = await studentRepository.findAll(filter);
     return { students };
   },
 
   getMaintenanceSummary: async () => {
-    const byCategory = await MaintenanceRequest.aggregate([
-      { $group: { _id: "$category", count: { $sum: 1 } } },
-      { $project: { _id: 0, category: "$_id", count: 1 } },
-    ]);
+    const snap = await col(COLLECTIONS.MAINTENANCE_REQUESTS).get();
+    const requests = snap.docs.map((d) => d.data());
 
-    const topIssues = await MaintenanceRequest.aggregate([
-      { $group: { _id: "$description", count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 5 },
-      { $project: { _id: 0, description: "$_id", count: 1 } },
-    ]);
+    // Group by category
+    const categoryMap = {};
+    for (const req of requests) {
+      categoryMap[req.category] = (categoryMap[req.category] || 0) + 1;
+    }
+    const byCategory = Object.entries(categoryMap).map(([category, count]) => ({
+      category,
+      count,
+    }));
+
+    // Top issues by description
+    const descMap = {};
+    for (const req of requests) {
+      descMap[req.description] = (descMap[req.description] || 0) + 1;
+    }
+    const topIssues = Object.entries(descMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([description, count]) => ({ description, count }));
 
     return {
       byCategory,
@@ -80,28 +98,45 @@ export const reportService = {
   },
 
   getRoomUtilization: async () => {
-    const rooms = await Room.find({});
+    const rooms = await roomRepository.findAll({});
     return {
       rooms: rooms.map((room) => ({
         roomId: room.id,
         capacity: room.capacity,
-        currentOccupancy: room.currentOccupancy,
-        utilizationRate: room.capacity ? (room.currentOccupancy / room.capacity) * 100 : 0,
+        currentOccupancy: room.currentOccupancy || 0,
+        utilizationRate: room.capacity
+          ? ((room.currentOccupancy || 0) / room.capacity) * 100
+          : 0,
       })),
     };
   },
 
   getUnassignedStudents: async () => {
-    const assigned = await Assignment.find({ status: "Active" }).distinct("student");
-    const students = await Student.find({ _id: { $nin: assigned } });
+    // Get all active assignment student IDs
+    const assignmentsSnap = await col(COLLECTIONS.ASSIGNMENTS)
+      .where("status", "==", "Active")
+      .get();
+    const assignedStudentIds = new Set(
+      assignmentsSnap.docs.map((d) => d.data().student)
+    );
+
+    const allStudents = await studentRepository.findAll({});
+    const students = allStudents.filter((s) => !assignedStudentIds.has(s.id));
     return { students };
   },
 
   getInventoryConditionReport: async () => {
-    const byCondition = await FurnitureItem.aggregate([
-      { $group: { _id: "$condition", count: { $sum: 1 } } },
-      { $project: { _id: 0, condition: "$_id", count: 1 } },
-    ]);
+    const snap = await col(COLLECTIONS.FURNITURE_ITEMS).get();
+    const items = snap.docs.map((d) => d.data());
+
+    const conditionMap = {};
+    for (const item of items) {
+      conditionMap[item.condition] = (conditionMap[item.condition] || 0) + 1;
+    }
+    const byCondition = Object.entries(conditionMap).map(([condition, count]) => ({
+      condition,
+      count,
+    }));
 
     return { byCondition };
   },

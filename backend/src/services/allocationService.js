@@ -18,7 +18,10 @@ export const allocationService = {
 
     const students = await studentRepository.findAll(studentFilter);
     const rooms = await roomRepository.findAvailable({});
-    const totalBedsAvailable = rooms.reduce((sum, room) => sum + room.availableBeds, 0);
+    const totalBedsAvailable = rooms.reduce(
+      (sum, room) => sum + Math.max(0, (room.capacity || 0) - (room.currentOccupancy || 0)),
+      0
+    );
 
     return { students, totalBedsAvailable };
   },
@@ -47,7 +50,10 @@ export const allocationService = {
         continue;
       }
 
-      const room = availableRooms.find((candidate) => candidate.availableBeds > 0);
+      const room = availableRooms.find(
+        (candidate) =>
+          Math.max(0, (candidate.capacity || 0) - (candidate.currentOccupancy || 0)) > 0
+      );
       if (!room) {
         unassigned.push(student);
         continue;
@@ -60,9 +66,16 @@ export const allocationService = {
         assignedBy: actorId,
       });
 
-      room.currentOccupancy += 1;
-      room.status = room.currentOccupancy >= room.capacity ? "Full" : "Available";
-      await room.save();
+      // Update room occupancy via repository
+      const newOccupancy = (room.currentOccupancy || 0) + 1;
+      const newStatus = newOccupancy >= room.capacity ? "Full" : "Available";
+      await roomRepository.updateById(room.id, {
+        currentOccupancy: newOccupancy,
+        status: newStatus,
+      });
+      // Keep local copy in sync for subsequent iterations
+      room.currentOccupancy = newOccupancy;
+      room.status = newStatus;
 
       assigned.push(assignment);
     }
@@ -106,9 +119,11 @@ export const allocationService = {
       reason: "Manual allocation",
     });
 
-    room.currentOccupancy += 1;
-    room.status = room.currentOccupancy >= room.capacity ? "Full" : "Available";
-    await room.save();
+    const newOccupancy = (room.currentOccupancy || 0) + 1;
+    await roomRepository.updateById(room.id, {
+      currentOccupancy: newOccupancy,
+      status: newOccupancy >= room.capacity ? "Full" : "Available",
+    });
 
     return assignment;
   },
@@ -120,10 +135,12 @@ export const allocationService = {
     }
 
     const room = await roomRepository.findById(assignment.room);
-    if (room && room.currentOccupancy > 0) {
-      room.currentOccupancy -= 1;
-      room.status = room.currentOccupancy >= room.capacity ? "Full" : "Available";
-      await room.save();
+    if (room && (room.currentOccupancy || 0) > 0) {
+      const newOccupancy = room.currentOccupancy - 1;
+      await roomRepository.updateById(room.id, {
+        currentOccupancy: newOccupancy,
+        status: newOccupancy >= room.capacity ? "Full" : "Available",
+      });
     }
 
     await assignmentRepository.vacateById(assignmentId);

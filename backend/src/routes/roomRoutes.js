@@ -12,20 +12,18 @@ import {
 
 const router = Router();
 
-router.use(
-  requireAuth,
-  authorizeRoles("dorm_admin", "management", "system_admin")
-);
+// Public/Student accessible routes (no role restriction or student-only)
+router.get("/rooms/available", requireAuth, roomController.getAvailableRooms);
 
-router.get("/dorms", roomController.getAllDorms);
-router.post("/dorms", validate(createDormSchema), roomController.createDorm);
-router.post("/dorms/:dormId/floors", validate(addFloorSchema), roomController.addFloor);
+// Admin-only routes
+router.get("/dorms", requireAuth, authorizeRoles("dorm_admin", "management", "system_admin"), roomController.getAllDorms);
+router.post("/dorms", requireAuth, authorizeRoles("dorm_admin", "management", "system_admin"), validate(createDormSchema), roomController.createDorm);
+router.post("/dorms/:dormId/floors", requireAuth, authorizeRoles("dorm_admin", "management", "system_admin"), validate(addFloorSchema), roomController.addFloor);
 
-router.get("/rooms", roomController.getRooms);
-router.post("/rooms", validate(createRoomSchema), roomController.createRoom);
-router.get("/rooms/available", roomController.getAvailableRooms);
-router.get("/rooms/:roomId", roomController.getRoom);
-router.put("/rooms/:roomId", validate(updateRoomSchema), roomController.updateRoom);
-router.get("/rooms/:roomId/occupants", roomController.getRoomOccupants);
+router.get("/rooms", requireAuth, authorizeRoles("dorm_admin", "management", "system_admin"), roomController.getRooms);
+router.post("/rooms", requireAuth, authorizeRoles("dorm_admin", "management", "system_admin"), validate(createRoomSchema), roomController.createRoom);
+router.get("/rooms/:roomId", requireAuth, authorizeRoles("dorm_admin", "management", "system_admin"), roomController.getRoom);
+router.put("/rooms/:roomId", requireAuth, authorizeRoles("dorm_admin", "management", "system_admin"), validate(updateRoomSchema), roomController.updateRoom);
+router.get("/rooms/:roomId/occupants", requireAuth, authorizeRoles("dorm_admin", "management", "system_admin"), roomController.getRoomOccupants);
 
 export { router as roomRoutes };

@@ -11,21 +11,7 @@ import {
 
 const router = Router();
 
-router.get(
-  "/room-change-requests",
-  requireAuth,
-  authorizeRoles("student"),
-  roomChangeController.getMyRoomChangeRequests
-);
-
-router.post(
-  "/room-change-requests",
-  requireAuth,
-  authorizeRoles("student"),
-  validate(submitRoomChangeSchema),
-  roomChangeController.submitRoomChangeRequest
-);
-
+// More specific routes first to avoid conflicts
 router.get(
   "/room-change-requests/pending",
   requireAuth,
@@ -47,6 +33,26 @@ router.put(
   authorizeRoles("dorm_admin", "system_admin"),
   validate(rejectRoomChangeSchema),
   roomChangeController.rejectRoomChange
+);
+
+// Student routes - less specific, should come after
+router.get(
+  "/room-change-requests",
+  requireAuth,
+  authorizeRoles("student"),
+  roomChangeController.getMyRoomChangeRequests
+);
+
+router.post(
+  "/room-change-requests",
+  (req, res, next) => {
+    console.log("[DEBUG] POST /room-change-requests route hit - student route");
+    next();
+  },
+  requireAuth,
+  authorizeRoles("student"),
+  validate(submitRoomChangeSchema),
+  roomChangeController.submitRoomChangeRequest
 );
 
 export { router as roomChangeRoutes };

@@ -1,19 +1,77 @@
-import { FurnitureItem } from "../models/FurnitureItem.js";
-import { KeyRecord } from "../models/KeyRecord.js";
-import { LinenRecord } from "../models/LinenRecord.js";
+import { getDb } from "../config/firebase.js";
+import { COLLECTIONS } from "../models/index.js";
+
+const furnitureCol = () => getDb().collection(COLLECTIONS.FURNITURE_ITEMS);
+const linenCol = () => getDb().collection(COLLECTIONS.LINEN_RECORDS);
+const keyCol = () => getDb().collection(COLLECTIONS.KEY_RECORDS);
+
+const toDoc = (doc) => {
+  if (!doc.exists) return null;
+  return { id: doc.id, ...doc.data() };
+};
 
 export const inventoryRepository = {
-  getFurnitureByRoom: (roomId) => FurnitureItem.find({ roomId }),
-  addFurniture: (payload) => FurnitureItem.create(payload),
-  updateFurniture: (id, payload) =>
-    FurnitureItem.findByIdAndUpdate(id, payload, { new: true, runValidators: true }),
+  // ── Furniture ────────────────────────────────────────────────────────────────
+  getFurnitureByRoom: async (roomId) => {
+    const snap = await furnitureCol().where("roomId", "==", roomId).get();
+    return snap.docs.map(toDoc);
+  },
 
-  issueLinen: (payload) => LinenRecord.create(payload),
-  returnLinen: (id, payload) =>
-    LinenRecord.findByIdAndUpdate(id, payload, { new: true, runValidators: true }),
+  addFurniture: async (payload) => {
+    const now = new Date();
+    const data = { ...payload, createdAt: now, updatedAt: now };
+    const ref = await furnitureCol().add(data);
+    return { id: ref.id, ...data };
+  },
 
-  issueKey: (payload) => KeyRecord.create(payload),
-  returnKey: (id, payload) =>
-    KeyRecord.findByIdAndUpdate(id, payload, { new: true, runValidators: true }),
-  getMissingKeys: () => KeyRecord.find({ status: "Missing" }).sort({ updatedAt: -1 }),
+  updateFurniture: async (id, payload) => {
+    const ref = furnitureCol().doc(id);
+    await ref.update({ ...payload, updatedAt: new Date() });
+    const updated = await ref.get();
+    return toDoc(updated);
+  },
+
+  // ── Linen ────────────────────────────────────────────────────────────────────
+  issueLinen: async (payload) => {
+    const now = new Date();
+    const data = { ...payload, dateIssued: payload.dateIssued || now, createdAt: now, updatedAt: now };
+    const ref = await linenCol().add(data);
+    return { id: ref.id, ...data };
+  },
+
+  returnLinen: async (id, payload) => {
+    const ref = linenCol().doc(id);
+    await ref.update({ ...payload, updatedAt: new Date() });
+    const updated = await ref.get();
+    return toDoc(updated);
+  },
+
+  // ── Keys ─────────────────────────────────────────────────────────────────────
+  issueKey: async (payload) => {
+    const now = new Date();
+    const data = {
+      ...payload,
+      status: payload.status || "Issued",
+      dateIssued: payload.dateIssued || now,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const ref = await keyCol().add(data);
+    return { id: ref.id, ...data };
+  },
+
+  returnKey: async (id, payload) => {
+    const ref = keyCol().doc(id);
+    await ref.update({ ...payload, updatedAt: new Date() });
+    const updated = await ref.get();
+    return toDoc(updated);
+  },
+
+  getMissingKeys: async () => {
+    const snap = await keyCol()
+      .where("status", "==", "Missing")
+      .orderBy("updatedAt", "desc")
+      .get();
+    return snap.docs.map(toDoc);
+  },
 };

@@ -2,6 +2,7 @@ import Joi from "joi";
 
 export const submitMaintenanceSchema = Joi.object({
   roomId: Joi.string().required(),
+  dormBlockId: Joi.string().optional(),
   category: Joi.string().valid("Plumbing", "Electrical", "Furniture", "Sanitation", "Other").required(),
   description: Joi.string().min(10).max(1000).required(),
   priority: Joi.string().valid("Low", "Medium", "High").required(),
@@ -19,4 +20,14 @@ export const addNoteSchema = Joi.object({
 
 export const reassignSchema = Joi.object({
   staffId: Joi.string().required(),
+});
+
+export const approveMaintenanceSchema = Joi.object({
+  notes: Joi.string().max(1000).optional(),
+  adminNotes: Joi.string().max(1000).optional(),
+});
+
+export const rejectMaintenanceSchema = Joi.object({
+  reason: Joi.string().min(10).max(1000).required(),
+  rejectionReason: Joi.string().min(10).max(1000).optional(),
 });

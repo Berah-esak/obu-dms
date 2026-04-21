@@ -113,24 +113,42 @@ class ApiService {
   }
 
   async forgotPassword(identifier: string): Promise<ApiResponse<{ message: string }>> {
-    return this.fetch(`${API_BASE_URL}/auth/forgot-password`, {
-      method: 'POST',
-      body: JSON.stringify({ identifier }),
-    });
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier }),
+      });
+      return this.handleResponse<{ message: string }>(response);
+    } catch (error) {
+      return { success: false, error: 'Network error', code: 'NETWORK_ERROR' };
+    }
   }
 
   async resetPassword(token: string, newPassword: string): Promise<ApiResponse<{ message: string }>> {
-    return this.fetch(`${API_BASE_URL}/auth/reset-password`, {
-      method: 'POST',
-      body: JSON.stringify({ token, newPassword }),
-    });
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newPassword }),
+      });
+      return this.handleResponse<{ message: string }>(response);
+    } catch (error) {
+      return { success: false, error: 'Network error', code: 'NETWORK_ERROR' };
+    }
   }
 
   async registerStudent(data: any): Promise<ApiResponse<{ message: string; user: any; student: any }>> {
-    return this.fetch(`${API_BASE_URL}/auth/register`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return this.handleResponse<{ message: string; user: any; student: any }>(response);
+    } catch (error) {
+      return { success: false, error: 'Network error', code: 'NETWORK_ERROR' };
+    }
   }
 
   // Student endpoints
@@ -144,6 +162,37 @@ class ApiService {
 
   async getStudentMaintenanceRequests(limit: number = 10, offset: number = 0): Promise<ApiResponse<{ requests: MaintenanceRequest[]; total: number }>> {
     return this.fetch(`${API_BASE_URL}/student/maintenance-requests?limit=${limit}&offset=${offset}`);
+  }
+
+  // Exit clearance endpoints
+  async submitExitRequest(data: { items: string[]; reason: string }): Promise<ApiResponse<{ exitRequest: any }>> {
+    return this.fetch(`${API_BASE_URL}/exit-requests`, { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async getMyExitRequests(params?: { limit?: number; status?: string }): Promise<ApiResponse<{ requests: any[]; total: number }>> {
+    const query = new URLSearchParams(params as Record<string, string>).toString();
+    return this.fetch(`${API_BASE_URL}/exit-requests/my-requests${query ? `?${query}` : ''}`);
+  }
+
+  async getPendingExitRequests(limit: number = 25): Promise<ApiResponse<{ requests: any[]; total: number }>> {
+    return this.fetch(`${API_BASE_URL}/exit-requests/pending?limit=${limit}`);
+  }
+
+  async approveExitRequest(requestId: string): Promise<ApiResponse<{ exitRequest: any }>> {
+    return this.fetch(`${API_BASE_URL}/exit-requests/${requestId}/approve`, { method: 'POST' });
+  }
+
+  async rejectExitRequest(requestId: string, reason: string): Promise<ApiResponse<{ exitRequest: any }>> {
+    return this.fetch(`${API_BASE_URL}/exit-requests/${requestId}/reject`, { method: 'POST', body: JSON.stringify({ reason }) });
+  }
+
+  async verifyExitCode(code: string): Promise<ApiResponse<{ valid: boolean; request: any }>> {
+    return this.fetch(`${API_BASE_URL}/exit-requests/verify`, { method: 'POST', body: JSON.stringify({ code }) });
+  }
+
+  async getExitRequestHistory(params?: { status?: string; startDate?: string; endDate?: string; limit?: number; offset?: number }): Promise<ApiResponse<{ requests: any[]; total: number }>> {
+    const query = new URLSearchParams(params as Record<string, string>).toString();
+    return this.fetch(`${API_BASE_URL}/exit-requests/history${query ? `?${query}` : ''}`);
   }
 
   async getStudents(params?: { department?: string; year?: number; search?: string }): Promise<ApiResponse<{ users: Student[]; total: number }>> {
@@ -242,12 +291,13 @@ class ApiService {
   }
 
   // Maintenance endpoints
-  async submitMaintenanceRequest(data: { roomId: string; category: string; description: string; priority: string; image?: File }): Promise<ApiResponse<MaintenanceRequest>> {
+  async submitMaintenanceRequest(data: { roomId: string; category: string; description: string; priority: string; image?: File; dormBlockId?: string }): Promise<ApiResponse<MaintenanceRequest>> {
     const formData = new FormData();
     formData.append('roomId', data.roomId);
     formData.append('category', data.category);
     formData.append('description', data.description);
     formData.append('priority', data.priority);
+    if (data.dormBlockId) formData.append('dormBlockId', data.dormBlockId);
     if (data.image) formData.append('image', data.image);
 
     const headers = this.getHeaders();
@@ -275,6 +325,20 @@ class ApiService {
 
   async reassignMaintenance(requestId: string, staffId: string): Promise<ApiResponse<{ success: boolean }>> {
     return this.fetch(`${API_BASE_URL}/maintenance-requests/${requestId}/reassign`, { method: 'PUT', body: JSON.stringify({ staffId }) });
+  }
+
+  async approveMaintenanceRequest(requestId: string, notes?: string): Promise<ApiResponse<{ message: string; request: any }>> {
+    return this.fetch(`${API_BASE_URL}/maintenance-requests/${requestId}/approve`, { 
+      method: 'PUT', 
+      body: JSON.stringify({ notes, adminNotes: notes }) 
+    });
+  }
+
+  async rejectMaintenanceRequest(requestId: string, reason: string): Promise<ApiResponse<{ message: string; request: any }>> {
+    return this.fetch(`${API_BASE_URL}/maintenance-requests/${requestId}/reject`, { 
+      method: 'PUT', 
+      body: JSON.stringify({ reason, rejectionReason: reason }) 
+    });
   }
 
   // Inventory endpoints

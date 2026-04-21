@@ -5,7 +5,7 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import morgan from "morgan";
 
-import { connectDatabase } from "./src/config/database.js";
+import { connectDatabase } from "./src/config/firebase.js";
 import { env } from "./src/config/env.js";
 import { errorHandler } from "./src/middlewares/errorMiddleware.js";
 import { notFoundHandler } from "./src/middlewares/notFoundMiddleware.js";
@@ -18,8 +18,7 @@ app.disable("x-powered-by");
 app.use(helmet());
 app.use(cors({ origin: env.corsOrigin }));
 app.use(compression());
-app.use(express.json({ limit: "1mb" }));
-app.use(express.urlencoded({ extended: true }));
+// NO global body parsers - routes handle their own parsing
 app.use(morgan(env.nodeEnv === "production" ? "combined" : "dev"));
 
 const limiter = rateLimit({
