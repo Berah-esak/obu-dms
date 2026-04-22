@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import type { Notification, MaintenanceRequest, RoomChangeRequest, Room } from '@/types/api';
 import StatCard from '@/components/StatCard';
 import {
   Users, DoorOpen, Wrench, BedDouble, BarChart3, ArrowRightLeft,
@@ -81,9 +82,9 @@ function StudentDashboard() {
     setExitRequestRefresh(prev => prev + 1);
   };
 
-  const unread = notifs.filter((n: any) => !n.isRead).length;
-  const activeMaint = myMaint.filter((r: any) => r.status !== 'Completed' && r.status !== 'Rejected');
-  const pendingChange = myChanges.find((r: any) => r.status === 'pending');
+  const unread = notifs.filter((n: Notification) => !n.isRead).length;
+  const activeMaint = myMaint.filter((r: MaintenanceRequest) => r.status !== 'Completed' && r.status !== 'Rejected');
+  const pendingChange = myChanges.find((r: RoomChangeRequest) => r.status === 'pending');
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -163,7 +164,7 @@ function StudentDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-2">
-            {activeMaint.slice(0, 3).map((req: any) => (
+            {activeMaint.slice(0, 3).map((req: MaintenanceRequest) => (
               <div key={req.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 border border-white/5">
                 <div className={cn('w-2 h-2 rounded-full flex-shrink-0',
                   req.priority === 'High' ? 'bg-destructive animate-pulse' :
@@ -214,7 +215,7 @@ function StudentDashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent className="px-4 pb-4 space-y-2">
-          {notifs.slice(0, 3).map((n: any) => (
+          {notifs.slice(0, 3).map((n: Notification) => (
             <div key={n.id} className={cn('flex items-start gap-3 p-2.5 rounded-xl', !n.isRead && 'bg-primary/5 border border-primary/10')}>
               {!n.isRead && <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />}
               <div className="min-w-0">
@@ -277,14 +278,14 @@ function AdminDashboard() {
     setExitRequestRefresh(prev => prev + 1);
   };
 
-  const unread = notifications.filter((n: any) => !n.isRead).length;
-  const pendingMaint = maintenance.filter((m: any) => m.status === 'Submitted').length;
-  const pendingChanges = roomChanges.filter((r: any) => r.status === 'pending').length;
+  const unread = notifications.filter((n: Notification) => !n.isRead).length;
+  const pendingMaint = maintenance.filter((m: MaintenanceRequest) => m.status === 'Submitted').length;
+  const pendingChanges = roomChanges.filter((r: RoomChangeRequest) => r.status === 'pending').length;
 
   const pieData = [
-    { name: 'Available', value: rooms.filter((r: any) => r.status === 'Available').length },
-    { name: 'Occupied',  value: rooms.filter((r: any) => r.status === 'Occupied').length },
-    { name: 'Maint.',    value: rooms.filter((r: any) => r.status === 'Under Maintenance').length },
+    { name: 'Available', value: rooms.filter((r: Room) => r.status === 'Available').length },
+    { name: 'Occupied',  value: rooms.filter((r: Room) => r.status === 'Occupied').length },
+    { name: 'Maint.',    value: rooms.filter((r: Room) => r.status === 'Under Maintenance').length },
   ];
 
   const [pulse, setPulse] = useState(false);
@@ -428,7 +429,7 @@ function AdminDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {roomChanges.filter((r: any) => r.status === 'pending').slice(0, 3).map((req: any) => (
+              {roomChanges.filter((r: RoomChangeRequest) => r.status === 'pending').slice(0, 3).map((req: RoomChangeRequest) => (
                 <div key={req.id} className="p-3 rounded-xl bg-warning/5 border border-warning/10 cursor-pointer hover:bg-warning/10 transition-all" onClick={() => navigate('/room-changes')}>
                   <p className="text-xs font-semibold text-foreground">{req.student?.fullName}</p>
                   <p className="text-[10px] text-muted-foreground capitalize">{req.reason} • {req.currentRoom?.roomId}</p>
@@ -449,7 +450,7 @@ function AdminDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {maintenance.slice(0, 4).map((req: any) => (
+            {maintenance.slice(0, 4).map((req: MaintenanceRequest) => (
               <div key={req.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-secondary/20 hover:bg-secondary/40 transition-all cursor-pointer border border-white/5" onClick={() => navigate('/maintenance')}>
                 <div className={cn('w-2 h-2 rounded-full flex-shrink-0',
                   req.priority === 'High' ? 'bg-destructive animate-pulse' :

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiService } from '@/lib/api';
+import type { AuditLog } from '@/types/api';
 import { Shield, Search, Download, MoreHorizontal, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -10,7 +11,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 const AuditLogsPage = () => {
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [actionFilter, setActionFilter] = useState('all');

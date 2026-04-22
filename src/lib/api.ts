@@ -1,6 +1,7 @@
-import type { LoginRequest, LoginResponse, User, Student, Dorm, Room, Assignment, RoomAssignment, RoomChangeRequest, MaintenanceRequest, FurnitureItem, LinenRecord, KeyRecord, Notification, AuditLog, DashboardSummary } from '@/types/api';
+import type { LoginResponse, User, Student, Dorm, Room, Assignment, RoomAssignment, RoomChangeRequest, MaintenanceRequest, FurnitureItem, LinenRecord, KeyRecord, Notification, AuditLog, DashboardSummary } from '@/types/api';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+// Simple API configuration for Vercel deployment
+const API_BASE_URL = '/api';
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -138,14 +139,14 @@ class ApiService {
     }
   }
 
-  async registerStudent(data: any): Promise<ApiResponse<{ message: string; user: any; student: any }>> {
+  async registerStudent(data: { firstName: string; lastName: string; email: string; studentId: string; department: string; year: number; gender: 'M' | 'F'; phone: string; password: string }): Promise<ApiResponse<{ message: string; user: User; student: Student }>> {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      return this.handleResponse<{ message: string; user: any; student: any }>(response);
+      return this.handleResponse<{ message: string; user: User; student: Student }>(response);
     } catch (error) {
       return { success: false, error: 'Network error', code: 'NETWORK_ERROR' };
     }
@@ -165,38 +166,41 @@ class ApiService {
   }
 
   // Exit clearance endpoints
-  async submitExitRequest(data: { items: string[]; reason: string }): Promise<ApiResponse<{ exitRequest: any }>> {
+  async submitExitRequest(data: { items: string[]; reason: string }): Promise<ApiResponse<{ exitRequest: Record<string, unknown> }>> {
     return this.fetch(`${API_BASE_URL}/exit-requests`, { method: 'POST', body: JSON.stringify(data) });
   }
 
-  async getMyExitRequests(params?: { limit?: number; status?: string }): Promise<ApiResponse<{ requests: any[]; total: number }>> {
+  async getMyExitRequests(params?: { limit?: number; status?: string }): Promise<ApiResponse<{ requests: Record<string, unknown>[]; total: number }>> {
     const query = new URLSearchParams(params as Record<string, string>).toString();
     return this.fetch(`${API_BASE_URL}/exit-requests/my-requests${query ? `?${query}` : ''}`);
   }
 
-  async getPendingExitRequests(limit: number = 25): Promise<ApiResponse<{ requests: any[]; total: number }>> {
+  async getPendingExitRequests(limit: number = 25): Promise<ApiResponse<{ requests: Record<string, unknown>[]; total: number }>> {
     return this.fetch(`${API_BASE_URL}/exit-requests/pending?limit=${limit}`);
   }
 
-  async approveExitRequest(requestId: string): Promise<ApiResponse<{ exitRequest: any }>> {
+  async approveExitRequest(requestId: string): Promise<ApiResponse<{ exitRequest: Record<string, unknown> }>> {
     return this.fetch(`${API_BASE_URL}/exit-requests/${requestId}/approve`, { method: 'POST' });
   }
 
-  async rejectExitRequest(requestId: string, reason: string): Promise<ApiResponse<{ exitRequest: any }>> {
+  async rejectExitRequest(requestId: string, reason: string): Promise<ApiResponse<{ exitRequest: Record<string, unknown> }>> {
     return this.fetch(`${API_BASE_URL}/exit-requests/${requestId}/reject`, { method: 'POST', body: JSON.stringify({ reason }) });
   }
 
-  async verifyExitCode(code: string): Promise<ApiResponse<{ valid: boolean; request: any }>> {
+  async verifyExitCode(code: string): Promise<ApiResponse<{ valid: boolean; request: Record<string, unknown> }>> {
     return this.fetch(`${API_BASE_URL}/exit-requests/verify`, { method: 'POST', body: JSON.stringify({ code }) });
   }
 
-  async getExitRequestHistory(params?: { status?: string; startDate?: string; endDate?: string; limit?: number; offset?: number }): Promise<ApiResponse<{ requests: any[]; total: number }>> {
+  async getExitRequestHistory(params?: { status?: string; startDate?: string; endDate?: string; limit?: number; offset?: number }): Promise<ApiResponse<{ requests: Record<string, unknown>[]; total: number }>> {
     const query = new URLSearchParams(params as Record<string, string>).toString();
     return this.fetch(`${API_BASE_URL}/exit-requests/history${query ? `?${query}` : ''}`);
   }
 
   async getStudents(params?: { department?: string; year?: number; search?: string }): Promise<ApiResponse<{ users: Student[]; total: number }>> {
-    const query = new URLSearchParams({ role: 'student', ...params } as Record<string, string>).toString();
+    const stringParams = params ? Object.fromEntries(
+      Object.entries({ role: 'student', ...params }).map(([key, value]) => [key, String(value)])
+    ) : { role: 'student' };
+    const query = new URLSearchParams(stringParams).toString();
     return this.fetch(`${API_BASE_URL}/users${query ? `?${query}` : ''}`);
   }
 
@@ -327,14 +331,14 @@ class ApiService {
     return this.fetch(`${API_BASE_URL}/maintenance-requests/${requestId}/reassign`, { method: 'PUT', body: JSON.stringify({ staffId }) });
   }
 
-  async approveMaintenanceRequest(requestId: string, notes?: string): Promise<ApiResponse<{ message: string; request: any }>> {
+  async approveMaintenanceRequest(requestId: string, notes?: string): Promise<ApiResponse<{ message: string; request: MaintenanceRequest }>> {
     return this.fetch(`${API_BASE_URL}/maintenance-requests/${requestId}/approve`, { 
       method: 'PUT', 
       body: JSON.stringify({ notes, adminNotes: notes }) 
     });
   }
 
-  async rejectMaintenanceRequest(requestId: string, reason: string): Promise<ApiResponse<{ message: string; request: any }>> {
+  async rejectMaintenanceRequest(requestId: string, reason: string): Promise<ApiResponse<{ message: string; request: MaintenanceRequest }>> {
     return this.fetch(`${API_BASE_URL}/maintenance-requests/${requestId}/reject`, { 
       method: 'PUT', 
       body: JSON.stringify({ reason, rejectionReason: reason }) 

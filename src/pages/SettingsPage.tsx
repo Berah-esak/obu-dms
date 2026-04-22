@@ -27,7 +27,7 @@ const Toggle = ({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   </button>
 );
 
-const Section = ({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) => (
+const Section = ({ icon: Icon, title, children }: { icon: React.ComponentType<{ className?: string }>; title: string; children: React.ReactNode }) => (
   <Card className="glass border-white/5">
     <CardHeader className="pb-3">
       <CardTitle className="text-sm font-bold flex items-center gap-2 text-foreground">
@@ -74,7 +74,7 @@ export default function SettingsPage() {
     load();
   }, []);
 
-  const set = (key: string, value: any) => setSettings((s: any) => ({ ...s, [key]: value }));
+  const set = (key: string, value: unknown) => setSettings((s: Record<string, unknown>) => ({ ...s, [key]: value }));
 
   const handleSave = () => {
     setSaving(true);
@@ -198,7 +198,7 @@ export default function SettingsPage() {
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <div>
             <p className="text-xs font-semibold text-foreground">Storage Mode: Backend</p>
-            <p className="text-[10px] text-muted-foreground">System preferences are read from and saved to the backend via <code className="text-primary">VITE_API_URL</code>.</p>
+            <p className="text-[10px] text-muted-foreground">System preferences are read from and saved to the backend API.</p>
           </div>
           <Badge variant="outline" className="ml-auto border-emerald-400/30 text-emerald-400 text-[10px]">LIVE</Badge>
         </div>

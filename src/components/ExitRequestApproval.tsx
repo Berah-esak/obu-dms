@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,7 +52,7 @@ export function ExitRequestApproval({ refreshTrigger = 0 }: ExitRequestApprovalP
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const loadRequests = async () => {
+  const loadRequests = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -62,28 +62,28 @@ export function ExitRequestApproval({ refreshTrigger = 0 }: ExitRequestApprovalP
       console.log('[EXIT APPROVAL] API Response:', response);
       
       if (response.success && response.data?.requests) {
-        setRequests(response.data.requests);
+        setRequests(response.data.requests as unknown as ExitRequest[]);
         console.log('[EXIT APPROVAL] Loaded requests:', response.data.requests.length);
       } else {
         console.error('[EXIT APPROVAL] Failed to load requests:', response.error);
         setError(response.error || 'Failed to load requests');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[EXIT APPROVAL] Error loading requests:', error);
-      setError(error.message || 'Network error');
+      setError((error as Error)?.message || 'Network error');
       toast({
         title: 'Error',
-        description: error.message || 'Failed to load exit requests',
+        description: (error as Error)?.message || 'Failed to load exit requests',
         variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     loadRequests();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, loadRequests]);
 
   // Auto-refresh every 30 seconds for real-time updates
   useEffect(() => {
@@ -95,7 +95,7 @@ export function ExitRequestApproval({ refreshTrigger = 0 }: ExitRequestApprovalP
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [processing, loading]);
+  }, [processing, loading, loadRequests]);
 
   const handleApprove = async () => {
     if (!selectedRequest) return;
@@ -110,7 +110,7 @@ export function ExitRequestApproval({ refreshTrigger = 0 }: ExitRequestApprovalP
       if (response.success) {
         toast({
           title: 'Request Approved',
-          description: `Exit request approved. Verification code: ${response.data?.verificationCode || 'Generated'}`,
+          description: 'Exit request approved successfully.',
         });
         setShowApproveDialog(false);
         setSelectedRequest(null);
@@ -118,11 +118,11 @@ export function ExitRequestApproval({ refreshTrigger = 0 }: ExitRequestApprovalP
       } else {
         throw new Error(response.error || 'Failed to approve request');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[EXIT APPROVAL] Approve error:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to approve request',
+        description: (error as Error)?.message || 'Failed to approve request',
         variant: 'destructive',
       });
     } finally {
@@ -159,11 +159,11 @@ export function ExitRequestApproval({ refreshTrigger = 0 }: ExitRequestApprovalP
       } else {
         throw new Error(response.error || 'Failed to reject request');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[EXIT APPROVAL] Reject error:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to reject request',
+        description: (error as Error)?.message || 'Failed to reject request',
         variant: 'destructive',
       });
     } finally {

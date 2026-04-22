@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { Room } from '@/types/api';
 import { ArrowRightLeft, CheckCircle2, XCircle, Clock, Plus, Filter } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -300,7 +301,7 @@ const RoomChangesPage = () => {
                   {availableRooms.length === 0 ? (
                     <div className="p-2 text-xs text-muted-foreground">No available rooms found</div>
                   ) : (
-                    availableRooms.map((r: any) => (
+                    availableRooms.map((r: Room) => (
                       <SelectItem key={r.id} value={r.id}>
                         {r.roomNumber} — {r.dorm?.name || r.dorm?.code || 'Unknown'} Fl.{r.floor} ({r.genderRestriction})
                       </SelectItem>
